@@ -166,13 +166,19 @@ export class PlayerManager {
         const dirZ = -Math.cos(rad);
         
         p.body.wakeUp();
+        
+        // Trigger a procedural hit sound scaled natively to the swing power
+        if (window.soundManagerGlobal) {
+            window.soundManagerGlobal.playHit(power);
+        }
+
         p.body.applyImpulse(
             new CANNON.Vec3(dirX * forceMult, 0, dirZ * forceMult),
             new CANNON.Vec3(0, 0, 0)
         );
     }
 
-    update(dt, holePos, sandTiles = [], boosters = [], mapBoundsX = 100, mapBoundsZ = 100) {
+    update(dt, holePos, sandTiles = [], boosters = [], mapBoundsX = 100, mapBoundsZ = 100, maxShotLimit = 10) {
         
         for (let i = this.activeSplashes.length - 1; i >= 0; i--) {
             let s = this.activeSplashes[i];
@@ -187,7 +193,7 @@ export class PlayerManager {
         }
 
         this.players.forEach(p => {
-            if (p.state === 'sunk') return;
+            if (p.state === 'sunk' || p.state === 'dnf') return;
 
             p.body.linearDamping = 0.65;
             p.body.angularDamping = 0.65;
@@ -236,6 +242,7 @@ export class PlayerManager {
 
                 if (p.body.isDrowned || p.body.position.y < 0.35) {
                     this.triggerSplash(p.body.position);
+                    if (window.soundManagerGlobal) window.soundManagerGlobal.playSplash();
                 }
 
                 p.body.position.copy(p.lastIdlePos);
@@ -258,6 +265,7 @@ export class PlayerManager {
                     p.mesh.visible = false;
                     p.nameTag.visible = false; 
                     
+                    if (window.soundManagerGlobal) window.soundManagerGlobal.playSunk();
                     if (window.twitchManagerGlobal) window.twitchManagerGlobal.say(`🎉 @${p.username} sank the ball in ${p.shots} shots!`);
                     if (window.showNotification) window.showNotification(`🎉 ${p.username} finished in ${p.shots}!`, p.colorHex);
                     return;
@@ -277,6 +285,21 @@ export class PlayerManager {
                 p.body.angularVelocity.set(0, 0, 0);
                 p.state = 'idle';
                 p.lastIdlePos.copy(p.body.position);
+                if (window.updatePlayerCount) window.updatePlayerCount();
+            }
+
+            // Centralized DNF Evaluation securely after all physics transitions
+            if (p.state === 'idle' && p.holeShots >= maxShotLimit) {
+                p.state = 'dnf';
+                p.shots -= p.holeShots;
+                p.holeShots = maxShotLimit + 2;
+                p.shots += p.holeShots;
+                
+                p.mesh.visible = false;
+                p.nameTag.visible = false;
+                
+                if (window.showNotification) window.showNotification(`❌ ${p.username} reached shot limit!`, p.colorHex);
+                if (window.twitchManagerGlobal) window.twitchManagerGlobal.say(`❌ @${p.username} DNF! Reached stroke limit.`);
                 if (window.updatePlayerCount) window.updatePlayerCount();
             }
         });

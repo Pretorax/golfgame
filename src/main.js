@@ -6,10 +6,11 @@ import { LevelGenerator } from './game/LevelGenerator.js';
 import { PlayerManager } from './game/PlayerManager.js';
 import { PhysicsWorld } from './game/PhysicsWorld.js';
 import { TwitchManager } from './TwitchManager.js';
+import { SoundManager } from './game/SoundManager.js';
 
 let scene, camera, renderer, labelRenderer, controls;
 let physicsWorld;
-let levelGenerator, playerManager, twitchManager;
+let levelGenerator, playerManager, twitchManager, soundManager;
 
 const clock = new THREE.Clock();
 
@@ -31,14 +32,16 @@ function init() {
     // Setup ThreeJS
     const container = document.getElementById('game-container');
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB); // Sky blue
+    // Background removed to allow CSS layer below
+    
     
     // Isometric-ish Top Down Camera
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 20, 20);
     camera.lookAt(0, 0, 0);
 
-    renderer = new THREE.WebGLRenderer({ antialias: false }); // False for retro feel
+    renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true }); // False for retro feel, Alpha true for CSS clouds
+    renderer.setClearColor(0x000000, 0); // Transparent
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
@@ -87,14 +90,41 @@ function init() {
     levelGenerator = new LevelGenerator(scene, physicsWorld);
     playerManager = new PlayerManager(scene, physicsWorld);
     twitchManager = new TwitchManager(handleTwitchCommand);
+    soundManager = new SoundManager();
     
-    // Mount it globally so PlayerManager can trigger responses when players sink holes
+    // Mount globally securely for nested dynamic systems
     window.twitchManagerGlobal = twitchManager;
+    window.soundManagerGlobal = soundManager;
 
     // Link UI
     document.getElementById('start-game-btn').addEventListener('click', startGame);
     document.getElementById('btn-end-round').addEventListener('click', endRoundEarly);
     document.getElementById('btn-quit-setup').addEventListener('click', quitToSetup);
+    
+    // Global Persistent Audio Mixing Native Hooks!
+    document.getElementById('mute-toggle').addEventListener('change', (e) => {
+        soundManager.init(); // Safely ungate AudioContext when interacted!
+        soundManager.setMuted(e.target.checked);
+    });
+    
+    document.getElementById('master-volume').addEventListener('input', (e) => {
+        soundManager.init(); // Safely ungate AudioContext when slider dragged!
+        const vol = parseInt(e.target.value) / 100;
+        soundManager.setVolume(vol);
+    });
+
+    document.getElementById('btn-start-lobby').addEventListener('click', () => {
+        if (gameState === 'lobby-waiting') {
+            gameState = 'lobby';
+            lobbyTimer = maxLobbyTimer;
+            document.getElementById('hud-timer-text').style.display = 'block';
+            document.getElementById('hud-timer-label').style.display = 'block';
+            document.getElementById('btn-start-lobby').style.display = 'none';
+            if (twitchManager.ws && twitchManager.ws.readyState === WebSocket.OPEN) {
+                console.log(`Lobby explicitly launched! Timer counting down cleanly natively!`);
+            }
+        }
+    });
 
     window.addEventListener('resize', onWindowResize, false);
 }
@@ -113,8 +143,9 @@ function startGame() {
     
     document.getElementById('hud-holes-total').innerText = maxHoles;
 
-    // Connect to Twitch
+    // Connect to Twitch and Init Audio securely via the strict user click gesture
     twitchManager.connect(channelName);
+    soundManager.init();
 
     // Initial Level Generation
     loadHole(1);
@@ -176,13 +207,28 @@ function loadHole(holeNum) {
     }
 
     // Setup the Lobby Phase!
-    gameState = 'lobby';
-    lobbyTimer = maxLobbyTimer;
-    document.getElementById('hud-timer-overlay').style.display = 'block';
-    
-    // Pure log fallback since bot replies are completely removed securely
-    if (twitchManager.ws && twitchManager.ws.readyState === WebSocket.OPEN) {
-        console.log(`Hole ${currentHole} generating. Lobby open!`);
+    if (holeNum === 1) {
+        gameState = 'lobby-waiting';
+        document.getElementById('hud-timer-overlay').style.display = 'flex';
+        document.getElementById('hud-timer-overlay').style.flexDirection = 'column';
+        document.getElementById('hud-timer-overlay').style.justifyContent = 'center';
+        document.getElementById('hud-timer-text').style.display = 'none';
+        document.getElementById('hud-timer-label').style.display = 'none';
+        document.getElementById('btn-start-lobby').style.display = 'block';
+        if (twitchManager.ws && twitchManager.ws.readyState === WebSocket.OPEN) {
+            console.log(`Hole 1 generating. Waiting for streamer to start the clock! Type !play to join early.`);
+        }
+    } else {
+        gameState = 'lobby';
+        lobbyTimer = maxLobbyTimer;
+        document.getElementById('hud-timer-overlay').style.display = 'block';
+        document.getElementById('hud-timer-text').style.display = 'block';
+        document.getElementById('hud-timer-label').style.display = 'block';
+        document.getElementById('btn-start-lobby').style.display = 'none';
+        
+        if (twitchManager.ws && twitchManager.ws.readyState === WebSocket.OPEN) {
+            console.log(`Hole ${currentHole} generating. Lobby open!`);
+        }
     }
 }
 
@@ -196,13 +242,14 @@ function endRoundEarly() {
     gameState = 'transition';
     document.getElementById('hud-timer-overlay').style.display = 'none';
 
-    // Penalize players who didn't reach the hole inside the time limit or shot limit
+    // Penalize players who didn't reach the hole inside the time limit
     playerManager.players.forEach(p => {
-        if (p.state !== 'sunk') {
+        if (p.state !== 'sunk' && p.state !== 'dnf') {
             // Strip out whatever strokes they took this hole, and apply the hard cap penalty + 2
             p.shots -= (p.holeShots || 0);
             p.shots += (maxShotLimit + 2);
             p.holeShots = (maxShotLimit + 2);
+            p.state = 'dnf';
             
             // Only strictly enforce math structurally without crashing chat broadcast!
             if (window.twitchManagerGlobal) {
@@ -226,6 +273,9 @@ function endRoundEarly() {
 
 function showFinalScorecard() {
     document.getElementById('match-complete-ui').style.display = 'block';
+    
+    // Trigger rewarding round-end applause organically!
+    if (soundManager) soundManager.playApplause();
     
     const playersArr = Array.from(playerManager.players.values());
     playersArr.sort((a, b) => a.shots - b.shots);
@@ -272,7 +322,7 @@ function handleTwitchCommand(user, command, args, hexColor) {
     if (gameState === 'setup' || gameState === 'transition') return;
 
     if (command === 'play') {
-        if (gameState !== 'lobby') return; // Cannot join if game has started
+        if (gameState !== 'lobby' && gameState !== 'lobby-waiting') return; // Cannot join if game has started
 
         // Only announce if they weren't already playing
         if (!playerManager.players.has(user)) {
@@ -359,7 +409,7 @@ function animate() {
         }
     } else if (gameState === 'playing') {
         roundTimer -= dt;
-        updateTimerUI(roundTimer, 'ROUND TIMER (Type !shoot)');
+        updateTimerUI(roundTimer, `SHOT LIMIT: ${maxShotLimit}`);
         if (roundTimer <= 0) {
             endRoundEarly();
         }
@@ -377,7 +427,7 @@ function animate() {
             const mapX = levelGenerator ? levelGenerator.width * levelGenerator.tileSize : 100;
             const mapZ = levelGenerator ? levelGenerator.height * levelGenerator.tileSize : 100;
             
-            playerManager.update(dt, holeParams, sandParams, boosterParams, mapX, mapZ);
+            playerManager.update(dt, holeParams, sandParams, boosterParams, mapX, mapZ, maxShotLimit);
             
             // Sync dynamic obstacle visuals mathematically
             if (levelGenerator && levelGenerator.objects) {

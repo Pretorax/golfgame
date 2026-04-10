@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Golf with Stream</title>
+    <title>Golf on Stream</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,13 +13,13 @@
 
     <!-- UI Overlay for Streamer Setup -->
     <div id="setup-ui" class="overlay-panel glass-panel">
-        <h1>⛳ Golf with Stream</h1>
+        <h1>⛳ Golf on Stream</h1>
         
         <div class="setup-columns">
             <div class="setup-column">
                 <div class="setup-section">
                     <label for="channel-name">Twitch Channel</label>
-                    <input type="text" id="channel-name" placeholder="e.g. pretorax" value="pretorax" />
+                    <input type="text" id="channel-name" placeholder="" value="" />
                 </div>
 
         <div class="setup-section">
@@ -105,9 +105,12 @@
                 <div id="hud-streamer-controls">
                     <button id="btn-end-round" class="glass-btn red-btn">Skip</button>
                     <button id="btn-quit-setup" class="glass-btn gray-btn">Quit</button>
-                    <label style="pointer-events: auto; font-size: 14px; margin-top: 5px; margin-left: 10px; display: inline-flex; align-items: center; gap: 5px; text-shadow: 1px 1px 2px black; color: white;">
-                        <input type="checkbox" id="auto-cam-toggle" checked> Auto-Cam
-                    </label>
+                    <div style="display: flex; flex-direction: column; margin-left: 10px;">
+                        <span style="font-size: 11px; color: #fbbf24; text-shadow: 1px 1px 2px black; font-family: 'Outfit', sans-serif;">🖱️ L-Click + Drag: Pan | ↕ Scroll: Zoom</span>
+                        <label style="pointer-events: auto; font-size: 14px; margin-top: 2px; display: inline-flex; align-items: center; gap: 5px; text-shadow: 1px 1px 2px black; color: white;">
+                            <input type="checkbox" id="auto-cam-toggle"> Auto-Cam <span style="font-size: 10px; opacity: 0.8">(work in progress)</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -115,12 +118,18 @@
             <div id="hud-timer-overlay">
                 <h1 id="hud-timer-text">00:00</h1>
                 <p id="hud-timer-label">LOBBY (!play)</p>
+                <button id="btn-start-lobby" class="primary-btn" style="display: none; pointer-events: auto; padding: 15px 30px; margin: 0 auto; font-size: 15px; font-family: 'Press Start 2P', cursive; box-shadow: 0 0 15px rgba(52,211,153,0.5);">START TIMER</button>
             </div>
 
-            <!-- Right Compass -->
+            <!-- Right Compass & Commands -->
             <div class="top-bar-right">
+                <div class="commands-panel glass-panel">
+                    <div class="cmd-phase"><span class="cmd-text">!play</span> to join</div>
+                    <div class="cmd-phase"><span class="cmd-text">!shoot &lt;0-359&gt; &lt;1-10&gt;</span></div>
+                </div>
                 <div id="hud-compass" class="glass-panel">
                     <div class="compass-ring">
+                        <div class="compass-label">SHOT<br>COMPASS</div>
                         <span class="deg-0">0</span>
                         <span class="deg-45">45</span>
                         <span class="deg-90">90</span>
@@ -160,6 +169,15 @@
             </ul>
         </div>
         <button id="btn-final-quit" class="primary-btn" style="margin-top: 2rem;">Quit to Setup</button>
+    </div>
+
+    <!-- Global Persistent Audio Controls -->
+    <div id="global-audio-controls" class="glass-panel" style="position: absolute; bottom: 30px; right: 3rem; z-index: 9999; display: flex; align-items: center; gap: 22px; padding: 15px 30px;">
+        <label style="color: white; font-size: 21px; font-weight: 700; display:flex; align-items: center; gap:12px; cursor: pointer;">
+            <input type="checkbox" id="mute-toggle" style="width: 24px; height: 24px;"> Mute
+        </label>
+        <span style="color: var(--neon-green); font-family: 'Press Start 2P', cursive; font-size: 12px;">VOL</span>
+        <input type="range" id="master-volume" min="0" max="100" value="10" style="width: 150px;">
     </div>
 
     <!-- Importmap for CDN Modules -->

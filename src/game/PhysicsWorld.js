@@ -56,6 +56,15 @@ export class PhysicsWorld {
                 // Sink / Drown penalty natively stopping entirely (handled eventually by sink managers)
                 ball.velocity.set(0, 0, 0); // Stops dead in water
                 ball.isDrowned = true;
+            } else if (isBall(bodyA) || isBall(bodyB)) {
+                // Trigger procedurally synthesized hit sounds natively scaled by impact power
+                try {
+                    const impactVel = Math.abs(event.contact.getImpactVelocityAlongNormal());
+                    // 1.5 threshold prevents rolling noise spam from locking the channel
+                    if (impactVel > 1.5 && window.soundManagerGlobal) {
+                        window.soundManagerGlobal.playHit(impactVel);
+                    }
+                } catch (e) {}
             }
         });
     }
