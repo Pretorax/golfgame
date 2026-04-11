@@ -23,7 +23,7 @@ let lobbyTimer = 0;
 let roundTimer = 0;
 let maxLobbyTimer = 20;
 let maxRoundTimer = 180;
-let maxShotLimit = 10;
+let maxShotLimit = 14;
 
 init();
 animate();
@@ -124,7 +124,7 @@ function init() {
         if (gameState === 'lobby-waiting') {
             gameState = 'lobby';
             lobbyTimer = maxLobbyTimer;
-            document.getElementById('hud-timer-text').style.display = 'block';
+                    document.getElementById('hud-timer-text').style.display = 'flex';
             document.getElementById('hud-timer-label').style.display = 'block';
             document.getElementById('btn-start-lobby').style.display = 'none';
             if (twitchManager.ws && twitchManager.ws.readyState === WebSocket.OPEN) {
@@ -142,7 +142,7 @@ function startGame() {
     maxHoles = parseInt(document.getElementById('holes-limit').value) || 3;
     maxLobbyTimer = parseInt(document.getElementById('lobby-timer').value) || 20;
     maxRoundTimer = parseInt(document.getElementById('round-timer').value) || 180;
-    maxShotLimit = parseInt(document.getElementById('shot-limit').value) || 10;
+    maxShotLimit = parseInt(document.getElementById('shot-limit').value) || 14;
     
     // Hide Setup, Show Game HUD
     document.getElementById('setup-ui').style.display = 'none';
@@ -221,7 +221,7 @@ function loadHole(holeNum) {
         gameState = 'lobby';
         lobbyTimer = maxLobbyTimer;
         document.getElementById('hud-timer-overlay').style.display = 'block';
-        document.getElementById('hud-timer-text').style.display = 'block';
+        document.getElementById('hud-timer-text').style.display = 'flex';
         document.getElementById('hud-timer-label').style.display = 'block';
         document.getElementById('btn-start-lobby').style.display = 'none';
         
@@ -402,7 +402,26 @@ function updateTimerUI(secondsLeft, label) {
     if (secondsLeft < 0) secondsLeft = 0;
     const m = Math.floor(secondsLeft / 60).toString().padStart(2, '0');
     const s = Math.floor(secondsLeft % 60).toString().padStart(2, '0');
-    document.getElementById('hud-timer-text').innerText = `${m}:${s}`;
+    
+    const timerNumsEl = document.getElementById('hud-timer-numbers');
+    if (timerNumsEl) {
+        timerNumsEl.innerText = `${m}:${s}`;
+    } else {
+        document.getElementById('hud-timer-text').innerText = `${m}:${s}`;
+    }
+    
+    const prefixEl = document.getElementById('hud-timer-prefix');
+    if (prefixEl) {
+        prefixEl.style.display = label.includes('LOBBY') ? 'inline-block' : 'none';
+    }
+    
+    const timerTextEl = document.getElementById('hud-timer-text');
+    if (label.includes('LOBBY') && secondsLeft <= 10 && secondsLeft > 0) {
+        timerTextEl.style.color = Math.sin(secondsLeft * 10) > 0 ? '#ef4444' : '#ffffff';
+    } else {
+        timerTextEl.style.color = '#ffffff';
+    }
+    
     document.getElementById('hud-timer-label').innerText = label;
 }
 
@@ -435,10 +454,11 @@ function animate() {
             const holeParams = levelGenerator ? levelGenerator.holePos : null;
             const sandParams = levelGenerator ? levelGenerator.sandTiles : [];
             const boosterParams = levelGenerator ? levelGenerator.boosters : [];
+            const teleporterParams = levelGenerator ? levelGenerator.teleporter : null;
             const mapX = levelGenerator ? levelGenerator.width * levelGenerator.tileSize : 100;
             const mapZ = levelGenerator ? levelGenerator.height * levelGenerator.tileSize : 100;
             
-            playerManager.update(dt, holeParams, sandParams, boosterParams, mapX, mapZ, maxShotLimit);
+            playerManager.update(dt, holeParams, sandParams, boosterParams, teleporterParams, mapX, mapZ, maxShotLimit);
             
             // Sync dynamic obstacle visuals mathematically
             if (levelGenerator && levelGenerator.objects) {
@@ -454,7 +474,7 @@ function animate() {
         // Check universal win condition: if all players are sunk or mathematically DNF, skip the rest of the round automatically
         if (gameState === 'playing' && playerManager.players.size > 0) {
             const allFinished = Array.from(playerManager.players.values()).every(p => {
-                return p.state === 'sunk' || (p.holeShots >= maxShotLimit && p.state === 'idle');
+                return p.state === 'sunk' || p.state === 'dnf';
             });
             if (allFinished) {
                 endRoundEarly();

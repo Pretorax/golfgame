@@ -15,6 +15,7 @@ export class LevelGenerator {
         this.holePos = new THREE.Vector3(0, 1, 0);
         this.boosters = [];
         this.sandTiles = [];
+        this.teleporter = null;
         
         this.matGrassDark = new THREE.MeshLambertMaterial({ map: this.createNoiseTexture('#3c7a34', '#387430') });
         this.matGrassLight = new THREE.MeshLambertMaterial({ map: this.createNoiseTexture('#4c9642', '#468c3d') });
@@ -42,6 +43,45 @@ export class LevelGenerator {
         this.matBooster = new THREE.MeshLambertMaterial({ map: this.boosterTex });
 
         this.boosterOffset = 0;
+
+        const portalVertShader = `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+        const portalFragShader = `
+            uniform float time;
+            uniform vec3 color;
+            uniform float dir;
+            varying vec2 vUv;
+            void main() {
+                vec2 uv = (vUv - 0.5) * 2.0;
+                float d = max(abs(uv.x), abs(uv.y)); 
+                float pulse = mod((1.0 - d) * 2.5 - (time * 2.0 * dir), 1.0);
+                float intensity = smoothstep(0.5, 1.0, pulse) + (1.0 - smoothstep(0.0, 0.3, d)); 
+                gl_FragColor = vec4(color * intensity * 1.5, 0.9);
+            }
+        `;
+        
+        this.portalUniformsIn = { time: { value: 0 }, color: { value: new THREE.Color(0xff8800) }, dir: { value: 1.0 } };
+        this.matTeleporterIn = new THREE.ShaderMaterial({
+            uniforms: this.portalUniformsIn,
+            vertexShader: portalVertShader,
+            fragmentShader: portalFragShader,
+            transparent: true,
+            depthWrite: false
+        });
+
+        this.portalUniformsOut = { time: { value: 0 }, color: { value: new THREE.Color(0x00a8ff) }, dir: { value: -1.0 } };
+        this.matTeleporterOut = new THREE.ShaderMaterial({
+            uniforms: this.portalUniformsOut,
+            vertexShader: portalVertShader,
+            fragmentShader: portalFragShader,
+            transparent: true,
+            depthWrite: false
+        });
 
         PhysicsWorld.initMaterials(this.physicsWorld);
     }
@@ -132,6 +172,9 @@ export class LevelGenerator {
         }
         this.timeAccumulator += dt;
         
+        if (this.portalUniformsIn) this.portalUniformsIn.time.value = this.timeAccumulator;
+        if (this.portalUniformsOut) this.portalUniformsOut.time.value = this.timeAccumulator;
+        
         if (this.globalFlagMesh) {
             const positions = this.globalFlagMesh.geometry.attributes.position;
             for (let i = 0; i < positions.count; i++) {
@@ -168,6 +211,7 @@ export class LevelGenerator {
         this.boosters = [];
         this.sandTiles = [];
         this.gridData = [];
+        this.teleporter = null;
         this.globalFlagMesh = null; // Clean up safely
     }
 
@@ -353,6 +397,7 @@ export class LevelGenerator {
         this.generateHills(w, h, config.hills);
         this.generateSimplerHazards(w, h, config.sand, config.water);
         this.addDynamicTiles(w, h, config.boosters); 
+        this.generateTeleporters(w, h);
 
         // WIDESCREEN TRANSPOSITION: Measure utilized bounds to mathematically guarantee lateral widescreen flow safely!
         let minX = w, maxX = -1, minZ = h, maxZ = -1;
@@ -766,6 +811,28 @@ export class LevelGenerator {
         }
     }
 
+    generateTeleporters(w, h) {
+        if (Math.random() > 0.25) return; // 25% chance of spawning structurally
+
+        let validSpots = [];
+        for (let x = 1; x < w - 1; x++) {
+            for (let z = 1; z < h - 1; z++) {
+                if (this.gridData[x][z].active && this.gridData[x][z].type === 'grass' && this.gridData[x][z].elevationAbs === 0) {
+                    validSpots.push({ x, z });
+                }
+            }
+        }
+        
+        if (validSpots.length > 5) {
+            validSpots.sort(() => Math.random() - 0.5);
+            let inTile = validSpots[0];
+            let outTile = validSpots[1];
+            
+            this.gridData[inTile.x][inTile.z].type = 'teleporter_in';
+            this.gridData[outTile.x][outTile.z].type = 'teleporter_out';
+        }
+    }
+
     spawnFreeObstacles(w, h, objFreq, chaos = 1) {
         if (objFreq === 0) return;
         // Find valid off-track grass coordinates strictly decoupled from the Golden Path unless Chaos overrides!
@@ -902,6 +969,8 @@ export class LevelGenerator {
                     mat = this.matWater;
                 } else if (cell.type === 'booster') {
                     mat = this.matBooster;
+                } else if (cell.type === 'teleporter_in' || cell.type === 'teleporter_out') {
+                    mat = this.matGrassDark; // Base grass block natively beneath
                 } else if (cell.type === 'slope') {
                     mat = this.matRamp;
                 }
@@ -940,6 +1009,32 @@ export class LevelGenerator {
                         if (cell.dir === 3) mesh.rotation.y = Math.PI;         // West
                         this.boosters.push({ x: cx, z: cz, dir: cell.dir });
                     }
+                    
+                    if (cell.type === 'teleporter_in' || cell.type === 'teleporter_out') {
+                        let isEntrance = (cell.type === 'teleporter_in');
+                        
+                        // Pulse Plane over Grass
+                        const vfxGeo = new THREE.PlaneGeometry(this.tileSize*0.9, this.tileSize*0.9);
+                        const vfxMesh = new THREE.Mesh(vfxGeo, isEntrance ? this.matTeleporterIn : this.matTeleporterOut);
+                        vfxMesh.rotation.x = -Math.PI / 2;
+                        vfxMesh.position.set(cx, actualY + (yHeight/2) + 0.005, cz);
+                        this.scene.add(vfxMesh);
+                        this.objects.push({ mesh: vfxMesh, body: null });
+                        
+                        // Explicit Colored Border mathematically anchored
+                        const edgeGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(this.tileSize*0.92, this.tileSize*0.92));
+                        const edgeMat = new THREE.LineBasicMaterial({ color: isEntrance ? 0xffa500 : 0x00a8ff, linewidth: 2 });
+                        const edgeLines = new THREE.LineSegments(edgeGeo, edgeMat);
+                        edgeLines.rotation.x = -Math.PI / 2;
+                        edgeLines.position.copy(vfxMesh.position);
+                        this.scene.add(edgeLines);
+                        this.objects.push({ mesh: edgeLines, body: null });
+                        
+                        if (!this.teleporter) this.teleporter = {};
+                        if (isEntrance) this.teleporter.in = { x: cx, z: cz, cy: actualY + yHeight/2 };
+                        if (!isEntrance) this.teleporter.out = { x: cx, z: cz, cy: actualY + yHeight/2 };
+                    }
+                    
                     mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 this.scene.add(mesh);

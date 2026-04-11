@@ -225,7 +225,7 @@ export class PlayerManager {
         if (window.showNotification) window.showNotification(`⚠️ ${username} triggered BOOST!`, p.colorHex);
     }
 
-    update(dt, holePos, sandTiles = [], boosters = [], mapBoundsX = 100, mapBoundsZ = 100, maxShotLimit = 10) {
+    update(dt, holePos, sandTiles = [], boosters = [], teleporter = null, mapBoundsX = 100, mapBoundsZ = 100, maxShotLimit = 10) {
         
         for (let i = this.activeSplashes.length - 1; i >= 0; i--) {
             let s = this.activeSplashes[i];
@@ -322,7 +322,41 @@ export class PlayerManager {
                     if (b.dir === 1) p.body.applyForce(new CANNON.Vec3(f, 0, 0), new CANNON.Vec3(0,0,0));
                     if (b.dir === 2) p.body.applyForce(new CANNON.Vec3(0, 0, f), new CANNON.Vec3(0,0,0));
                     if (b.dir === 3) p.body.applyForce(new CANNON.Vec3(-f, 0, 0), new CANNON.Vec3(0,0,0));
-                    p.body.linearDamping = 0.4;
+                }
+            }
+            
+            // Core Teleporter Physical Event Loop
+            if (teleporter && teleporter.in && teleporter.out) {
+                if (Math.pow(p.body.position.x - teleporter.in.x, 2) + Math.pow(p.body.position.z - teleporter.in.z, 2) < 0.15) {
+                    if (!p.teleported) {
+                        p.teleported = true;
+                        
+                        // Physically translate mathematically into Output boundaries!
+                        p.body.position.set(teleporter.out.x, teleporter.out.cy, teleporter.out.z);
+                        p.body.velocity.set(0, 0, 0);
+                        p.body.angularVelocity.set(0, 0, 0);
+                        p.body.wakeUp();
+                        
+                        // Blast Outwards Randomly with Strict Power 3 constraint
+                        p.state = 'moving';
+                        const randAngle = Math.random() * Math.PI * 2;
+                        p.body.applyImpulse(
+                            new CANNON.Vec3(Math.cos(randAngle) * 3, 0, Math.sin(randAngle) * 3),
+                            new CANNON.Vec3(0, 0, 0)
+                        );
+                        p.body.linearDamping = 0.4;
+                        
+                        p.mesh.position.copy(p.body.position);
+                        p.mesh.quaternion.copy(p.body.quaternion);
+                        this.triggerSplash(p.body.position); // Re-use particle puff to visualize warp effect securely
+                        
+                        if (window.soundManagerGlobal) window.soundManagerGlobal.playHit(3);
+                        if (window.showNotification) window.showNotification(`🌀 ${p.username} Teleported!`, p.colorHex);
+                        if (window.twitchManagerGlobal) window.twitchManagerGlobal.say(`🌀 @${p.username} got sucked through the Teleporter!`);
+                    }
+                } else if (p.teleported && Math.pow(p.body.position.x - teleporter.out.x, 2) + Math.pow(p.body.position.z - teleporter.out.z, 2) > 0.4) {
+                    // Safe logic threshold preventing immediate re-trigger bouncing mathematically
+                    p.teleported = false;
                 }
             }
 

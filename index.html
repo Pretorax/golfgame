@@ -33,7 +33,7 @@
             </div>
             <div class="input-row">
                 <label for="shot-limit">Shot Limit (Par + X):</label>
-                <input type="number" id="shot-limit" value="10" min="1" class="short-input">
+                <input type="number" id="shot-limit" value="14" min="1" class="short-input">
             </div>
             <div class="input-row">
                 <label for="lobby-timer">Lobby Timer (s):</label>
@@ -126,7 +126,10 @@
 
             <!-- Center Clock -->
             <div id="hud-timer-overlay">
-                <h1 id="hud-timer-text">00:00</h1>
+                <h1 id="hud-timer-text" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; margin-bottom: 5px;">
+                    <span id="hud-timer-prefix" style="font-size: 14px; font-family: 'Outfit', sans-serif; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; display: none;">Starting in</span>
+                    <span id="hud-timer-numbers">00:00</span>
+                </h1>
                 <button id="btn-start-lobby" class="primary-btn" style="display: none; pointer-events: auto; padding: 15px 30px; margin: 0 auto; font-size: 15px; font-family: 'Press Start 2P', cursive; box-shadow: 0 0 15px rgba(52,211,153,0.5);">START TIMER</button>
                 <p id="hud-timer-label" style="margin-top: 10px;">LOBBY (type !play to join)</p>
             </div>

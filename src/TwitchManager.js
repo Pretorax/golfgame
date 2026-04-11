@@ -102,8 +102,13 @@ export class TwitchManager {
         let args = [];
         
         const compassMap = { 'n': 0, 'ne': 45, 'e': 90, 'se': 135, 's': 180, 'sw': 225, 'w': 270, 'nw': 315 };
+        const compactMatch = commandStr.match(/^!?(n|ne|e|se|s|sw|w|nw)(\d+(?:\.\d+)?)$/i);
         
-        if (commandStr.startsWith('!')) {
+        if (compactMatch) {
+            command = 'shoot';
+            isCommand = true;
+            args = [compactMatch[1], compactMatch[2]];
+        } else if (commandStr.startsWith('!')) {
             command = commandStr.substring(1);
             isCommand = true;
             args = parts.slice(1);
@@ -115,6 +120,14 @@ export class TwitchManager {
             command = 'shoot';
             isCommand = true;
             args = parts;
+        }
+
+        // Secondary fallback checking specifically for "shoot sw10" formats
+        if (command === 'shoot' && args.length === 1) {
+            const nestedMatch = args[0].match(/^(n|ne|e|se|s|sw|w|nw)(\d+(?:\.\d+)?)$/i);
+            if (nestedMatch) {
+                args = [nestedMatch[1], nestedMatch[2]];
+            }
         }
 
         if (isCommand) {
