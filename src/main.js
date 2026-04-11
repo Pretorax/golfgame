@@ -298,11 +298,17 @@ function endRoundEarly() {
     gameState = 'transition';
     document.getElementById('hud-timer-overlay').style.display = 'none';
 
-    // Penalize players who didn't reach the hole inside the time limit
+    // Cull natively idle players or penalize active ones who didn't reach the hole inside the time limit
+    const afkUsers = [];
     playerManager.players.forEach(p => {
+        if (!p.holeShots || p.holeShots === 0) {
+            afkUsers.push(p.username);
+            return;
+        }
+
         if (p.state !== 'sunk' && p.state !== 'dnf') {
             // Strip out whatever strokes they took this hole, and apply the hard cap penalty + 2
-            p.shots -= (p.holeShots || 0);
+            p.shots -= p.holeShots;
             p.shots += (maxShotLimit + 2);
             p.holeShots = (maxShotLimit + 2);
             p.state = 'dnf';
@@ -312,6 +318,13 @@ function endRoundEarly() {
                 console.log(`Oof! @${p.username} failed to finish.`);
             }
         }
+    });
+
+    afkUsers.forEach(u => {
+        if (window.twitchManagerGlobal) {
+            console.log(`@${u} was removed from the match for being AFK! Type !join to re-enter.`);
+        }
+        playerManager.removePlayer(u);
     });
 
     window.updatePlayerCount(); // Update the scorecard before moving on!
@@ -364,11 +377,6 @@ function quitToSetup() {
     levelGenerator.clearLevel();
     playerManager.clearPlayers();
     window.updatePlayerCount(); // clears scorecard
-    
-    if (twitchManager.ws) {
-        twitchManager.ws.close();
-        twitchManager.ws = null;
-    }
 }
 
 // Hook Quit Button Native Call
