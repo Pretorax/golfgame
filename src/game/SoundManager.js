@@ -191,4 +191,47 @@ export class SoundManager {
 
         noiseSource.start(t);
     }
+
+    playGuitar() {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const dur = 1.2;
+
+        const osc = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const distortion = this.ctx.createWaveShaper();
+
+        // Synthetic power chord (A2 + E3)
+        osc.type = 'sawtooth';
+        osc.frequency.value = 110.00; // A2
+
+        osc2.type = 'square';
+        osc2.frequency.value = 164.81; // E3
+        
+        // Simple distortion curve mathematically
+        const n_samples = 44100;
+        const curve = new Float32Array(n_samples);
+        const deg = Math.PI / 180;
+        for (let i = 0; i < n_samples; ++i) {
+            let x = i * 2 / n_samples - 1;
+            curve[i] = ( 3 + 20 ) * x * 20 * deg / ( Math.PI + 20 * Math.abs(x) );
+        }
+        distortion.curve = curve;
+        distortion.oversample = '4x';
+
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.8, t + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+
+        osc.connect(distortion);
+        osc2.connect(distortion);
+        distortion.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc.start(t);
+        osc2.start(t);
+        osc.stop(t + dur);
+        osc2.stop(t + dur);
+    }
 }

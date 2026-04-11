@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Golf on Stream</title>
+    <title>Twitch Golf on Stream</title>
+    <script>
+        window.addEventListener('error', (event) => {
+            document.body.innerHTML += `<div style="color:red; background:white; position:absolute; z-index:9999; top:0; left:0; font-size: 24px;">ERROR: ${event.message}</div>`;
+        });
+        window.addEventListener('unhandledrejection', (event) => {
+            document.body.innerHTML += `<div style="color:red; background:white; position:absolute; z-index:9999; top:40px; left:0; font-size: 24px;">PROMISE ERROR: ${event.reason}</div>`;
+        });
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -42,6 +51,10 @@
             <div class="input-row">
                 <label for="round-timer">Round Timer (s):</label>
                 <input type="number" id="round-timer" value="180" min="10" class="short-input">
+            </div>
+            <div class="input-row" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                <label for="hardcore-toggle" style="color: #ef4444; font-weight: bold;">🔥 Hardcore Mode:</label>
+                <input type="checkbox" id="hardcore-toggle" style="transform: scale(1.5);">
             </div>
         </div>
             </div>
@@ -130,7 +143,7 @@
                     <span id="hud-timer-prefix" style="font-size: 14px; font-family: 'Outfit', sans-serif; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; display: none;">Starting in</span>
                     <span id="hud-timer-numbers">00:00</span>
                 </h1>
-                <button id="btn-start-lobby" class="primary-btn" style="display: none; pointer-events: auto; padding: 15px 30px; margin: 0 auto; font-size: 15px; font-family: 'Press Start 2P', cursive; box-shadow: 0 0 15px rgba(52,211,153,0.5);">START TIMER</button>
+                <button id="btn-start-lobby" class="primary-btn" style="display: none; pointer-events: auto; padding: 20px 40px; margin: 10px auto; font-size: 18px; font-family: 'Press Start 2P', cursive; box-shadow: 0 0 15px rgba(52,211,153,0.5); animation: pulseGlow 2s infinite ease-in-out;">START GAME</button>
                 <p id="hud-timer-label" style="margin-top: 10px;">LOBBY (type !play to join)</p>
             </div>
 

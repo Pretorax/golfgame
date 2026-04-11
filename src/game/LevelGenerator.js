@@ -16,6 +16,7 @@ export class LevelGenerator {
         this.boosters = [];
         this.sandTiles = [];
         this.teleporter = null;
+        this.lavaTiles = [];
         
         this.matGrassDark = new THREE.MeshLambertMaterial({ map: this.createNoiseTexture('#3c7a34', '#387430') });
         this.matGrassLight = new THREE.MeshLambertMaterial({ map: this.createNoiseTexture('#4c9642', '#468c3d') });
@@ -81,6 +82,27 @@ export class LevelGenerator {
             fragmentShader: portalFragShader,
             transparent: true,
             depthWrite: false
+        });
+        
+        const lavaFragShader = `
+            uniform float time;
+            varying vec2 vUv;
+            void main() {
+                vec2 uv = vUv * 3.0; 
+                float n = sin(uv.x + time) + cos(uv.y + time * 1.5);
+                n += sin(uv.x * 2.1 - time * 0.8) * 0.5;
+                float intensity = smoothstep(-1.0, 1.5, n);
+                vec3 baseColor = vec3(0.7, 0.1, 0.0);
+                vec3 highlight = vec3(1.0, 0.5, 0.0);
+                gl_FragColor = vec4(mix(baseColor, highlight, intensity), 1.0);
+            }
+        `;
+        
+        this.lavaUniforms = { time: { value: 0 } };
+        this.matLava = new THREE.ShaderMaterial({
+            uniforms: this.lavaUniforms,
+            vertexShader: portalVertShader,
+            fragmentShader: lavaFragShader
         });
 
         PhysicsWorld.initMaterials(this.physicsWorld);
@@ -174,6 +196,7 @@ export class LevelGenerator {
         
         if (this.portalUniformsIn) this.portalUniformsIn.time.value = this.timeAccumulator;
         if (this.portalUniformsOut) this.portalUniformsOut.time.value = this.timeAccumulator;
+        if (this.lavaUniforms) this.lavaUniforms.time.value = this.timeAccumulator;
         
         if (this.globalFlagMesh) {
             const positions = this.globalFlagMesh.geometry.attributes.position;
@@ -212,7 +235,99 @@ export class LevelGenerator {
         this.sandTiles = [];
         this.gridData = [];
         this.teleporter = null;
+        this.lavaTiles = [];
         this.globalFlagMesh = null; // Clean up safely
+    }
+
+    triggerHardcoreLavaSpawn(playersData) {
+        let validTiles = [];
+        
+        let playerFootprints = [];
+        playersData.forEach(p => {
+            if (p.state !== 'dnf' && p.body) {
+                playerFootprints.push({ x: p.body.position.x, z: p.body.position.z });
+            }
+        });
+
+        for (let x = 0; x < this.width; x++) {
+            for (let z = 0; z < this.height; z++) {
+                if (this.gridData[x] && this.gridData[x][z] && this.gridData[x][z].active && this.gridData[x][z].type === 'grass') {
+                    const cx = (x * this.tileSize) + (this.tileSize/2);
+                    const cz = (z * this.tileSize) + (this.tileSize/2);
+                    
+                    let playerTooClose = false;
+                    for (let fp of playerFootprints) {
+                        if (Math.pow(fp.x - cx, 2) + Math.pow(fp.z - cz, 2) < 2.0) {
+                            playerTooClose = true;
+                            break;
+                        }
+                    }
+                    if (!playerTooClose) {
+                        validTiles.push({ grid: this.gridData[x][z], cx: cx, cz: cz, gx: x, gz: z });
+                    }
+                }
+            }
+        }
+        
+        for (let i = 0; i < 1 && validTiles.length > 0; i++) {
+            const rIndex = Math.floor(Math.random() * validTiles.length);
+            const tile = validTiles.splice(rIndex, 1)[0];
+            
+            // Reassign texture to custom Lava shader native binding
+            tile.grid.type = 'lava';
+            if (tile.grid.meshReference) {
+                tile.grid.meshReference.material = this.matLava;
+                
+                // Explode realistic hot particles physically upwards!
+                for(let p = 0; p < 15; p++) {
+                    const sparkMat = new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xff5500 : 0xffaa00 });
+                    const sparkGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+                    const spark = new THREE.Mesh(sparkGeo, sparkMat);
+                    spark.position.set(
+                        tile.cx + (Math.random() - 0.5) * 0.8,
+                        1.5,
+                        tile.cz + (Math.random() - 0.5) * 0.8
+                    );
+                    this.scene.add(spark);
+                    
+                    const sparkBody = new CANNON.Body({
+                        mass: 0.1,
+                        shape: new CANNON.Box(new CANNON.Vec3(0.05, 0.05, 0.05)),
+                        linearDamping: 0.1,
+                        angularDamping: 0.1
+                    });
+                    sparkBody.position.copy(spark.position);
+                    sparkBody.velocity.set(
+                        (Math.random() - 0.5) * 4,
+                        Math.random() * 5 + 3,
+                        (Math.random() - 0.5) * 4
+                    );
+                    this.physicsWorld.addBody(sparkBody);
+                    
+                    // Add temporarily to objects array with an expiration timer constraint natively!
+                    this.objects.push({
+                        mesh: spark,
+                        body: sparkBody,
+                        isParticle: true,
+                        life: 1.5
+                    });
+                }
+            }
+            
+            this.lavaTiles.push({ x: tile.cx, z: tile.cz });
+            
+            // Locate Obstacles physically residing linearly over this exact grid layout position natively
+            for (let j = this.objects.length - 1; j >= 0; j--) {
+                const obj = this.objects[j];
+                if (obj.isObstacle && obj.mesh) {
+                    if (Math.pow(obj.mesh.position.x - tile.cx, 2) + Math.pow(obj.mesh.position.z - tile.cz, 2) < 1.0) {
+                        this.scene.remove(obj.mesh);
+                        if (obj.body) this.physicsWorld.removeBody(obj.body);
+                        this.objects.splice(j, 1);
+                    }
+                }
+            }
+        }
     }
 
     getStartPos() {
@@ -999,6 +1114,7 @@ export class LevelGenerator {
                     const geometry = new THREE.BoxGeometry(this.tileSize, yHeight, this.tileSize);
                     const mesh = new THREE.Mesh(geometry, mat);
                     mesh.position.set(cx, actualY, cz);
+                    cell.meshReference = mesh;
                     
                     if (cell.type === 'booster') {
                         // Strict synchronization with physics propulsion logic directions!

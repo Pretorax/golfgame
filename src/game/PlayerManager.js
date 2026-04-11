@@ -129,7 +129,8 @@ export class PlayerManager {
             boostTimer: 0,
             lastAngle: null,
             lastPower: null,
-            lastIdlePos: new CANNON.Vec3(startPos.x, startPos.y + 0.5, startPos.z)
+            lastIdlePos: new CANNON.Vec3(startPos.x, startPos.y + 0.5, startPos.z),
+            hasUsedEleven: false
         };
         this.players.set(username, playerObj);
     }
@@ -163,9 +164,23 @@ export class PlayerManager {
         p.body.collisionFilterGroup = CG_ACTIVE_BALL;
         p.body.collisionFilterMask = CG_ENVIRONMENT | CG_ACTIVE_BALL;
 
-        const power = Math.max(1, Math.min(10, powerLevel));
-        // Power scaling increased by 50%
-        const forceMult = power * 1.95; 
+        let power;
+        if (powerLevel === 11) {
+            if (!p.hasUsedEleven) {
+                p.hasUsedEleven = true;
+                power = 11;
+                if (window.showNotification) window.showNotification(`🎸 ${username}... these go to eleven!`, p.colorHex);
+                if (window.soundManagerGlobal) window.soundManagerGlobal.playGuitar();
+            } else {
+                if (window.twitchManagerGlobal) window.twitchManagerGlobal.say(`🎸 @${username} has already used their power 11 shot! Reverting to maximum power 10.`);
+                power = 10;
+            }
+        } else {
+            power = Math.max(1, Math.min(10, powerLevel));
+        }
+
+        // Power scaling increased by exactly 50% for 11 specifically
+        const forceMult = power === 11 ? (10 * 1.95) * 1.5 : power * 1.95; 
         const rad = angleDeg * (Math.PI / 180);
         const dirX = Math.sin(rad);
         const dirZ = -Math.cos(rad);
@@ -225,7 +240,7 @@ export class PlayerManager {
         if (window.showNotification) window.showNotification(`⚠️ ${username} triggered BOOST!`, p.colorHex);
     }
 
-    update(dt, holePos, sandTiles = [], boosters = [], teleporter = null, mapBoundsX = 100, mapBoundsZ = 100, maxShotLimit = 10) {
+    update(dt, holePos, sandTiles = [], boosters = [], teleporter = null, mapBoundsX = 100, mapBoundsZ = 100, maxShotLimit = 14, lavaTiles = []) {
         
         for (let i = this.activeSplashes.length - 1; i >= 0; i--) {
             let s = this.activeSplashes[i];
@@ -299,6 +314,25 @@ export class PlayerManager {
 
             p.body.linearDamping = 0.65;
             p.body.angularDamping = 0.65;
+
+            let inLava = false;
+            for(let i=0; i<lavaTiles.length; i++) {
+                let lt = lavaTiles[i];
+                if (Math.pow(p.body.position.x - lt.x, 2) + Math.pow(p.body.position.z - lt.z, 2) < 0.15) {
+                    inLava = true;
+                    break;
+                }
+            }
+            if (inLava) {
+                p.state = 'dnf';
+                p.mesh.visible = false;
+                p.nameTag.element.innerText = "🔥 MELTED";
+                this.triggerSplash(p.body.position);
+                if (window.soundManagerGlobal) window.soundManagerGlobal.playHit(4); // Impact sound
+                if (window.showNotification) window.showNotification(`🔥 ${p.username} MELTED!`, p.colorHex);
+                if (window.twitchManagerGlobal) window.twitchManagerGlobal.say(`🔥 @${p.username} fell into the Lava and completely melted! DNF!`);
+                return;
+            }
 
             let inSand = false;
             for(let i=0; i<sandTiles.length; i++) {

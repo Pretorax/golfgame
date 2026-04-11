@@ -24,6 +24,8 @@ let roundTimer = 0;
 let maxLobbyTimer = 20;
 let maxRoundTimer = 180;
 let maxShotLimit = 14;
+let isHardcoreMode = false;
+let hardcoreDelta = 0;
 
 init();
 animate();
@@ -143,6 +145,7 @@ function startGame() {
     maxLobbyTimer = parseInt(document.getElementById('lobby-timer').value) || 20;
     maxRoundTimer = parseInt(document.getElementById('round-timer').value) || 180;
     maxShotLimit = parseInt(document.getElementById('shot-limit').value) || 14;
+    isHardcoreMode = document.getElementById('hardcore-toggle').checked;
     
     // Hide Setup, Show Game HUD
     document.getElementById('setup-ui').style.display = 'none';
@@ -182,6 +185,7 @@ function loadHole(holeNum) {
     
     // Teleport any existing players gracefully to the newly generated starting pad
     if (holeNum > 1) {
+        hardcoreDelta = 0;
         playerManager.resetForNextHole(levelGenerator.getStartPos());
     }
     
@@ -443,6 +447,16 @@ function animate() {
         if (roundTimer <= 0) {
             endRoundEarly();
         }
+        
+        if (isHardcoreMode) {
+            hardcoreDelta += dt;
+            if (hardcoreDelta >= 10) {
+                hardcoreDelta = 0;
+                if (levelGenerator && typeof levelGenerator.triggerHardcoreLavaSpawn === 'function') {
+                    levelGenerator.triggerHardcoreLavaSpawn(playerManager.players);
+                }
+            }
+        }
     }
 
     if (gameState !== 'setup') {
@@ -457,17 +471,31 @@ function animate() {
             const teleporterParams = levelGenerator ? levelGenerator.teleporter : null;
             const mapX = levelGenerator ? levelGenerator.width * levelGenerator.tileSize : 100;
             const mapZ = levelGenerator ? levelGenerator.height * levelGenerator.tileSize : 100;
+            const lavaParams = levelGenerator ? levelGenerator.lavaTiles : [];
             
-            playerManager.update(dt, holeParams, sandParams, boosterParams, teleporterParams, mapX, mapZ, maxShotLimit);
+            playerManager.update(dt, holeParams, sandParams, boosterParams, teleporterParams, mapX, mapZ, maxShotLimit, lavaParams);
             
             // Sync dynamic obstacle visuals mathematically
             if (levelGenerator && levelGenerator.objects) {
-                levelGenerator.objects.forEach(obj => {
+                for (let j = levelGenerator.objects.length - 1; j >= 0; j--) {
+                    const obj = levelGenerator.objects[j];
                     if (obj.body && obj.body.mass > 0) {
                         obj.mesh.position.copy(obj.body.position);
                         obj.mesh.quaternion.copy(obj.body.quaternion);
+                        
+                        if (obj.isParticle) {
+                            obj.life -= dt;
+                            if (obj.life <= 0) {
+                                scene.remove(obj.mesh);
+                                physicsWorld.removeBody(obj.body);
+                                levelGenerator.objects.splice(j, 1);
+                            } else {
+                                const scale = Math.max(0.01, obj.life / 1.5);
+                                obj.mesh.scale.set(scale, scale, scale);
+                            }
+                        }
                     }
-                });
+                }
             }
         }
 
