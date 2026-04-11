@@ -106,6 +106,46 @@ function init() {
     window.soundManagerGlobal = soundManager;
 
     // Link UI
+    document.getElementById('btn-connect-twitch').addEventListener('click', (e) => {
+        const channelName = document.getElementById('channel-name').value;
+        const btn = e.target;
+        
+        btn.style.color = 'white'; 
+        
+        if (!channelName) {
+            btn.style.boxShadow = '0 0 10px #ef4444';
+            btn.innerText = 'Empty';
+            return;
+        }
+        btn.style.boxShadow = '0 0 15px #fbbf24';
+        btn.innerText = 'Wait...';
+        
+        const connectTimeout = setTimeout(() => {
+            btn.style.boxShadow = '0 0 10px #ef4444';
+            btn.innerText = 'Error';
+            setTimeout(() => {
+                if (btn.innerText === 'Error') {
+                    btn.style.boxShadow = '';
+                    btn.innerText = 'Connect';
+                }
+            }, 2500);
+        }, 5000);
+
+        twitchManager.connect(channelName, () => {
+            clearTimeout(connectTimeout);
+            btn.style.boxShadow = '0 0 20px var(--neon-green)';
+            btn.innerText = 'Connected!';
+            btn.style.color = 'var(--neon-green)';
+        });
+    });
+
+    document.getElementById('channel-name').addEventListener('input', () => {
+        const btn = document.getElementById('btn-connect-twitch');
+        btn.style.boxShadow = '';
+        btn.style.color = 'white';
+        btn.innerText = 'Connect';
+    });
+
     document.getElementById('start-game-btn').addEventListener('click', startGame);
     document.getElementById('btn-end-round').addEventListener('click', endRoundEarly);
     document.getElementById('btn-quit-setup').addEventListener('click', quitToSetup);
@@ -154,7 +194,10 @@ function startGame() {
     document.getElementById('hud-holes-total').innerText = maxHoles;
 
     // Connect to Twitch and Init Audio securely via the strict user click gesture
-    twitchManager.connect(channelName);
+    const safeChannelName = channelName ? channelName.trim().toLowerCase() : '';
+    if (twitchManager.connectedChannel !== safeChannelName) {
+        twitchManager.connect(safeChannelName);
+    }
     soundManager.init();
 
     // Initial Level Generation

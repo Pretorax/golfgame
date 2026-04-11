@@ -6,7 +6,7 @@ export class SoundManager {
         
         // Centralized State
         this.isMuted = false;
-        this.volume = 0.1;
+        this.volume = 0.25;
 
         // BGM Streamer
         this.bgmAudio = new Audio();
@@ -38,7 +38,7 @@ export class SoundManager {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         this.ctx = new AudioContext();
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = this.isMuted ? 0 : this.volume; // Apply UI mixed volume smoothly
+        this.masterGain.gain.value = this.volume; // Apply UI mixed volume smoothly
         this.masterGain.connect(this.ctx.destination);
         
         // Stream HTML Audio gracefully into the Web Audio context
@@ -46,7 +46,7 @@ export class SoundManager {
         
         // Dedicated BGM sub-gain natively to lightly suppress music under the loud physics sounds
         this.bgmGain = this.ctx.createGain();
-        this.bgmGain.gain.value = 0.45; 
+        this.bgmGain.gain.value = this.isMuted ? 0 : 0.225; 
         
         this.bgmSource.connect(this.bgmGain);
         this.bgmGain.connect(this.masterGain);
@@ -69,15 +69,15 @@ export class SoundManager {
 
     setVolume(pct) {
         this.volume = pct;
-        if (this.masterGain && !this.isMuted) {
+        if (this.masterGain) {
             this.masterGain.gain.value = this.volume;
         }
     }
 
     setMuted(muted) {
         this.isMuted = muted;
-        if (this.masterGain) {
-            this.masterGain.gain.value = muted ? 0 : this.volume;
+        if (this.bgmGain) {
+            this.bgmGain.gain.value = muted ? 0 : 0.225;
         }
     }
 
@@ -103,8 +103,8 @@ export class SoundManager {
         osc.frequency.setValueAtTime(600, t);
         osc.frequency.exponentialRampToValueAtTime(100, t + 0.05);
 
-        // Map relative physics velocity (usually 1 to 20 dynamically) natively to volume
-        const vol = Math.min(Math.max(velocity * 0.05, 0.02), 0.6);
+        // Map relative physics velocity natively to volume and scale natively by 50% (1.5x)
+        const vol = Math.min(Math.max(velocity * 0.075, 0.03), 0.9);
         
         gain.gain.setValueAtTime(vol, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
@@ -129,7 +129,7 @@ export class SoundManager {
         filter.frequency.linearRampToValueAtTime(150, t + 0.6);
 
         const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.5, t);
+        gain.gain.setValueAtTime(0.75, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
 
         noiseSource.connect(filter);
@@ -159,9 +159,9 @@ export class SoundManager {
             osc.stop(startTime + dur);
         };
 
-        // Clean Two-tone descending rewarding chime like Mario sinking
-        playTone(550, t, 0.3, 0.3);
-        playTone(350, t + 0.15, 0.4, 0.2);
+        // Clean Two-tone descending rewarding chime like Mario sinking, scaled up 50%
+        playTone(550, t, 0.3, 0.45);
+        playTone(350, t + 0.15, 0.4, 0.3);
     }
 
     playApplause() {
@@ -178,11 +178,11 @@ export class SoundManager {
         filter.frequency.value = 800; // soft human range
         filter.Q.value = 0.4;
 
-        // Elegant Gaussian-like wave swelling mathematically mimicking crowd scaling up then dying down
+        // Elegant Gaussian-like wave swelling mathematically mimicking crowd scaling up then dying down (Boosted 50%)
         const gain = this.ctx.createGain();
         gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(0.8, t + 1.2);
-        gain.gain.linearRampToValueAtTime(0.2, t + 3.5);
+        gain.gain.linearRampToValueAtTime(1.2, t + 1.2);
+        gain.gain.linearRampToValueAtTime(0.3, t + 3.5);
         gain.gain.linearRampToValueAtTime(0, t + duration);
 
         noiseSource.connect(filter);
@@ -221,7 +221,7 @@ export class SoundManager {
         distortion.oversample = '4x';
 
         gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(0.8, t + 0.1);
+        gain.gain.linearRampToValueAtTime(1.2, t + 0.1);
         gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
 
         osc.connect(distortion);

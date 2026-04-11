@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Twitch Golf on Stream</title>
+    <title>Golf on Stream</title>
     <script>
         window.addEventListener('error', (event) => {
             document.body.innerHTML += `<div style="color:red; background:white; position:absolute; z-index:9999; top:0; left:0; font-size: 24px;">ERROR: ${event.message}</div>`;
@@ -21,19 +21,19 @@
     </div>
 
     <!-- UI Overlay for Streamer Setup -->
-    <div id="setup-ui" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; display: flex; gap: 2rem; align-items: stretch; transition: opacity 0.3s;">
+    <div id="setup-ui" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85); z-index: 10; display: flex; gap: 2rem; align-items: stretch; transition: opacity 0.3s;">
         
         <!-- Main Settings Panel -->
         <div class="glass-panel" style="background: rgba(15, 23, 42, 0.8); padding: 3.75rem; max-width: 1000px; max-height: 90vh; overflow-y: auto;">
-            <h1>⛳ Golf on Stream</h1>
+            <h1 style="font-size: 3.2rem; text-align: center; width: 100%; white-space: nowrap; margin-bottom: 2rem;">⛳ Golf on Stream</h1>
+        
+        <div class="setup-section" style="margin-bottom: 25px; display: flex; align-items: center; gap: 15px;">
+            <input type="text" id="channel-name" placeholder="Twitch Channel" style="flex: 8; padding: 15px; font-size: 24px; margin: 0;" />
+            <button id="btn-connect-twitch" class="primary-btn" style="flex: 2; margin: 0; padding: 15px 5px; font-size: 20px; text-align: center; display: flex; justify-content: center; align-items: center; min-width: unset;">Connect</button>
+        </div>
         
         <div class="setup-columns">
             <div class="setup-column">
-                <div class="setup-section">
-                    <label for="channel-name">Twitch Channel</label>
-                    <input type="text" id="channel-name" placeholder="" value="" />
-                </div>
-
         <div class="setup-section">
             <h3>Game Rules</h3>
             <div class="input-row">
@@ -227,7 +227,7 @@
             <input type="checkbox" id="mute-toggle" style="width: 20px; height: 20px;"> Mute Music
         </label>
         <span style="color: var(--neon-green); font-family: 'Press Start 2P', cursive; font-size: 12px;">VOL</span>
-        <input type="range" id="master-volume" min="0" max="100" value="10" style="width: 150px;">
+        <input type="range" id="master-volume" min="0" max="100" value="25" style="width: 150px;">
     </div>
 
     <!-- Importmap for CDN Modules -->

@@ -6,10 +6,16 @@ export class TwitchManager {
         this.botUsername = null;
     }
 
-    connect(channelName) {
+    connect(channelName, onConnectedCallback = null) {
         if (!channelName) {
             console.error("No Twitch Channel provided.");
             return;
+        }
+        
+        if (this.ws) {
+            this.ws.onclose = null; // Clear old handlers
+            this.ws.close();
+            this.ws = null;
         }
 
         const safeChannel = channelName.trim().toLowerCase();
@@ -75,6 +81,7 @@ export class TwitchManager {
                 this.parseMessage(username, message, hexColor);
             } else if (rawMessage.includes(`JOIN #${safeChannel}`)) {
                 console.log(`Successfully joined #${safeChannel}!`);
+                if (onConnectedCallback) onConnectedCallback();
             }
         };
 
