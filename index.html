@@ -211,9 +211,12 @@
 
     <!-- Test Ball Dev Console -->
     <div id="test-console" class="glass-panel" style="display: none; position: absolute; bottom: 30px; left: 30px; z-index: 9999; padding: 15px;">
-        <h3 style="margin-top: 0; color: #fbbf24; font-size: 14px; font-family: 'Outfit', sans-serif;">Test Ball Console</h3>
-        <input type="text" id="test-console-input" placeholder="Type join or shoot 45 10..." style="width: 250px; background: rgba(0,0,0,0.5); color: white; border: 1px solid #34d399; padding: 5px; font-family: monospace;">
+        <input type="text" id="test-console-input" style="width: 250px; background: rgba(0,0,0,0.5); color: white; border: 1px solid #34d399; padding: 5px; font-family: monospace;">
         <div style="font-size: 10px; color: #aaa; margin-top: 5px; font-family: 'Outfit', sans-serif;">Press Enter to send, ` to hide</div>
+        <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+            <input type="checkbox" id="infinite-toggle" style="transform: scale(1.2); cursor: pointer;">
+            <label for="infinite-toggle" style="color: #fbbf24; font-family: 'Outfit', sans-serif; font-size: 14px; margin: 0; cursor: pointer;">Infinite Mode (Loop)</label>
+        </div>
     </div>
 
     <!-- Global Persistent Audio Controls -->

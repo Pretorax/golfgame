@@ -25,6 +25,7 @@ let maxLobbyTimer = 20;
 let maxRoundTimer = 180;
 let maxShotLimit = 14;
 let isHardcoreMode = false;
+let isInfiniteMode = false;
 let hardcoreDelta = 0;
 
 init();
@@ -146,6 +147,14 @@ function init() {
         btn.innerText = 'Connect';
     });
 
+    // Dynamic infinite mode binding from dev console
+    document.getElementById('infinite-toggle').addEventListener('change', (e) => {
+        isInfiniteMode = e.target.checked;
+        if (gameState !== 'setup') {
+            document.getElementById('hud-holes-total').innerText = isInfiniteMode ? '∞' : maxHoles;
+        }
+    });
+
     document.getElementById('start-game-btn').addEventListener('click', startGame);
     document.getElementById('btn-end-round').addEventListener('click', endRoundEarly);
     document.getElementById('btn-quit-setup').addEventListener('click', quitToSetup);
@@ -186,12 +195,13 @@ function startGame() {
     maxRoundTimer = parseInt(document.getElementById('round-timer').value) || 180;
     maxShotLimit = parseInt(document.getElementById('shot-limit').value) || 14;
     isHardcoreMode = document.getElementById('hardcore-toggle').checked;
+    isInfiniteMode = document.getElementById('infinite-toggle').checked;
     
     // Hide Setup, Show Game HUD
     document.getElementById('setup-ui').style.display = 'none';
     document.getElementById('hud-ui').style.display = 'block';
     
-    document.getElementById('hud-holes-total').innerText = maxHoles;
+    document.getElementById('hud-holes-total').innerText = isInfiniteMode ? '∞' : maxHoles;
 
     // Connect to Twitch and Init Audio securely via the strict user click gesture
     const safeChannelName = channelName ? channelName.trim().toLowerCase() : '';
@@ -307,7 +317,7 @@ function endRoundEarly() {
     window.updatePlayerCount(); // Update the scorecard before moving on!
     
     // Check if next hole, or finish match
-    if (currentHole < maxHoles) {
+    if (isInfiniteMode || currentHole < maxHoles) {
         console.log(`Hole Complete! Moving to Hole ${currentHole + 1}!`);
         loadHole(currentHole + 1);
     } else {
