@@ -124,6 +124,11 @@ export class PlayerManager {
             state: 'idle', 
             shots: initialShots,
             holeShots: 0,
+            hasBoosted: false,
+            isBoosting: false,
+            boostTimer: 0,
+            lastAngle: null,
+            lastPower: null,
             lastIdlePos: new CANNON.Vec3(startPos.x, startPos.y + 0.5, startPos.z)
         };
         this.players.set(username, playerObj);
@@ -176,6 +181,48 @@ export class PlayerManager {
             new CANNON.Vec3(dirX * forceMult, 0, dirZ * forceMult),
             new CANNON.Vec3(0, 0, 0)
         );
+        
+        p.lastAngle = angleDeg;
+        p.lastPower = powerLevel;
+    }
+
+    repeatShot(username, maxShotLimit) {
+        const p = this.players.get(username);
+        if (!p) return;
+        if (p.lastAngle === null || p.lastPower === null) {
+            if (window.twitchManagerGlobal) window.twitchManagerGlobal.say(`🚫 @${username} You haven't taken a shot yet to repeat!`);
+            return;
+        }
+        this.shoot(username, p.lastAngle, p.lastPower, maxShotLimit);
+    }
+
+    triggerExplosion(pos) {
+        const geo = new THREE.SphereGeometry(0.1, 8, 8);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true });
+        for (let i = 0; i < 15; i++) {
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            mesh.position.y += 0.2; 
+            this.scene.add(mesh);
+            const vel = new THREE.Vector3((Math.random() - 0.5) * 8, Math.random() * 5 + 2, (Math.random() - 0.5) * 8);
+            this.activeSplashes.push({ mesh, vel, life: 1.0 }); // Reuse activeSplashes logic for fading particles
+        }
+    }
+
+    triggerBoost(username, maxShotLimit) {
+        const p = this.players.get(username);
+        if (!p) return;
+        if (p.hasBoosted) {
+            if (window.twitchManagerGlobal) window.twitchManagerGlobal.say(`🚫 @${username} has already used their !boost this match!`);
+            return;
+        }
+        if (p.state === 'sunk' || p.state === 'dnf') return;
+
+        p.hasBoosted = true;
+        p.isBoosting = true;
+        p.boostTimer = 5.0;
+        
+        if (window.showNotification) window.showNotification(`⚠️ ${username} triggered BOOST!`, p.colorHex);
     }
 
     update(dt, holePos, sandTiles = [], boosters = [], mapBoundsX = 100, mapBoundsZ = 100, maxShotLimit = 10) {
@@ -194,6 +241,61 @@ export class PlayerManager {
 
         this.players.forEach(p => {
             if (p.state === 'sunk' || p.state === 'dnf') return;
+
+            if (p.isBoosting) {
+                p.boostTimer -= dt;
+                
+                if (Math.sin(p.boostTimer * 20) > 0) {
+                    p.mesh.material.color.setHex(0xff0000);
+                } else {
+                    p.mesh.material.color.set(p.colorHex);
+                }
+                p.nameTag.element.innerText = `[${Math.ceil(p.boostTimer)}] ${p.username}`;
+
+                if (p.boostTimer <= 0) {
+                    p.isBoosting = false;
+                    this.triggerExplosion(p.body.position);
+                    if (window.soundManagerGlobal) window.soundManagerGlobal.playHit(10); 
+
+                    this.players.forEach(otherp => {
+                        if (otherp !== p && otherp.state !== 'sunk' && otherp.state !== 'dnf') {
+                            const distSq = Math.pow(p.body.position.x - otherp.body.position.x, 2) + Math.pow(p.body.position.z - otherp.body.position.z, 2);
+                            if (distSq < 16.0) { 
+                                const dx = otherp.body.position.x - p.body.position.x;
+                                const dz = otherp.body.position.z - p.body.position.z;
+                                const len = Math.sqrt(dx*dx + dz*dz) || 1;
+                                const force = (1.0 - (Math.sqrt(distSq) / 4.0)) * 25.0; 
+
+                                otherp.body.wakeUp();
+                                otherp.body.collisionFilterGroup = CG_ACTIVE_BALL;
+                                otherp.body.collisionFilterMask = CG_ENVIRONMENT | CG_ACTIVE_BALL;
+                                otherp.state = 'moving';
+                                otherp.body.applyImpulse(
+                                    new CANNON.Vec3((dx/len) * force, 5, (dz/len) * force),
+                                    new CANNON.Vec3(0,0,0)
+                                );
+                            }
+                        }
+                    });
+
+                    p.state = 'dnf';
+                    p.shots -= p.holeShots;
+                    p.holeShots = maxShotLimit + 2;
+                    p.shots += p.holeShots;
+                    
+                    p.mesh.visible = false;
+                    p.nameTag.visible = false;
+                    p.nameTag.element.innerText = p.username;
+                    
+                    if (window.showNotification) window.showNotification(`💥 ${p.username} EXPLODED!`, p.colorHex);
+                    if (window.twitchManagerGlobal) window.twitchManagerGlobal.say(`💥 @${p.username} self-destructed and DNF'd!`);
+                    if (window.updatePlayerCount) window.updatePlayerCount();
+                    return; 
+                }
+            } else {
+                p.mesh.material.color.set(p.colorHex);
+                p.nameTag.element.innerText = p.username;
+            }
 
             p.body.linearDamping = 0.65;
             p.body.angularDamping = 0.65;

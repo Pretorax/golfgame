@@ -63,6 +63,13 @@ function init() {
     controls.enablePan = true;
     controls.enableZoom = true;
     controls.maxPolarAngle = Math.PI / 2 - 0.1; // Don't allow going under the ground
+    
+    // Pause auto-cam dynamically when the streamer visually takes control
+    controls.addEventListener('start', () => {
+        if (typeof autoCamPauseTimer !== 'undefined') {
+            autoCamPauseTimer = 15.0;
+        }
+    });
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -155,9 +162,6 @@ function loadHole(holeNum) {
     currentHole = holeNum;
     document.getElementById('hud-hole').innerText = currentHole;
     
-    // Check mode
-    const mode = document.querySelector('input[name="level-mode"]:checked').value;
-    
     levelGenerator.clearLevel();
     
     // Only wipe the massive active lobby if we are literally starting a fresh MATCH
@@ -165,21 +169,16 @@ function loadHole(holeNum) {
         playerManager.clearPlayers();
     }
 
-    if (mode === 'procedural') {
-        const config = {
-            scale: parseInt(document.getElementById('freq-scale') ? document.getElementById('freq-scale').value : 5),
-            water: parseInt(document.getElementById('freq-water') ? document.getElementById('freq-water').value : 5),
-            sand: parseInt(document.getElementById('freq-sand') ? document.getElementById('freq-sand').value : 5),
-            hills: parseInt(document.getElementById('freq-hills') ? document.getElementById('freq-hills').value : 5),
-            objects: parseInt(document.getElementById('freq-objects') ? document.getElementById('freq-objects').value : 5),
-            boosters: parseInt(document.getElementById('freq-boosters') ? document.getElementById('freq-boosters').value : 5),
-            chaos: parseInt(document.getElementById('freq-chaos') ? document.getElementById('freq-chaos').value : 1)
-        };
-        levelGenerator.generateProcedural(config); 
-    } else {
-        const code = document.getElementById('custom-level-code').value;
-        levelGenerator.generateFromCode(code);
-    }
+    const config = {
+        scale: parseInt(document.getElementById('freq-scale') ? document.getElementById('freq-scale').value : 5),
+        water: parseInt(document.getElementById('freq-water') ? document.getElementById('freq-water').value : 5),
+        sand: parseInt(document.getElementById('freq-sand') ? document.getElementById('freq-sand').value : 5),
+        hills: parseInt(document.getElementById('freq-hills') ? document.getElementById('freq-hills').value : 5),
+        objects: parseInt(document.getElementById('freq-objects') ? document.getElementById('freq-objects').value : 5),
+        boosters: parseInt(document.getElementById('freq-boosters') ? document.getElementById('freq-boosters').value : 5),
+        chaos: parseInt(document.getElementById('freq-chaos') ? document.getElementById('freq-chaos').value : 1)
+    };
+    levelGenerator.generateProcedural(config);
     
     // Teleport any existing players gracefully to the newly generated starting pad
     if (holeNum > 1) {
@@ -213,10 +212,10 @@ function loadHole(holeNum) {
         document.getElementById('hud-timer-overlay').style.flexDirection = 'column';
         document.getElementById('hud-timer-overlay').style.justifyContent = 'center';
         document.getElementById('hud-timer-text').style.display = 'none';
-        document.getElementById('hud-timer-label').style.display = 'none';
+        document.getElementById('hud-timer-label').style.display = 'block';
         document.getElementById('btn-start-lobby').style.display = 'block';
         if (twitchManager.ws && twitchManager.ws.readyState === WebSocket.OPEN) {
-            console.log(`Hole 1 generating. Waiting for streamer to start the clock! Type !play to join early.`);
+            console.log(`Hole 1 generating. Waiting for streamer to start the clock! Type play or join to enter.`);
         }
     } else {
         gameState = 'lobby';
@@ -301,7 +300,7 @@ function showFinalScorecard() {
 
 function quitToSetup() {
     gameState = 'setup';
-    document.getElementById('setup-ui').style.display = 'block';
+    document.getElementById('setup-ui').style.display = 'flex';
     document.getElementById('hud-ui').style.display = 'none';
     document.getElementById('match-complete-ui').style.display = 'none';
     
@@ -321,7 +320,7 @@ document.getElementById('btn-final-quit').addEventListener('click', quitToSetup)
 function handleTwitchCommand(user, command, args, hexColor) {
     if (gameState === 'setup' || gameState === 'transition') return;
 
-    if (command === 'play') {
+    if (command === 'play' || command === 'join') {
         if (gameState !== 'lobby' && gameState !== 'lobby-waiting') return; // Cannot join if game has started
 
         // Only announce if they weren't already playing
@@ -337,17 +336,29 @@ function handleTwitchCommand(user, command, args, hexColor) {
             }
             window.showNotification(`+ ${user} joined`, hexColor);
         }
-    } else if (command === 'shoot') {
+    } else if (command === 'shoot' || command === 'shot') {
         if (gameState !== 'playing') return; // Cannot shoot in lobby
 
         if (args.length >= 2) {
-            const angle = parseFloat(args[0]);
+            let arg0 = args[0].toLowerCase();
+            const compassMap = { 'n': 0, 'ne': 45, 'e': 90, 'se': 135, 's': 180, 'sw': 225, 'w': 270, 'nw': 315 };
+            
+            let angle = compassMap.hasOwnProperty(arg0) ? compassMap[arg0] : parseFloat(arg0);
             const power = parseFloat(args[1]);
-            playerManager.shoot(user, angle, power, maxShotLimit);
+            
+            if (!isNaN(angle) && !isNaN(power)) {
+                playerManager.shoot(user, angle, power, maxShotLimit);
+            }
         } else {
             // Optional: Twitch chat usage instructions
             // twitchManager.say(`@${user} Usage: !shoot [angle] [power]. Example: !shoot 45 10`);
         }
+    } else if (command === 'boost') {
+        if (gameState !== 'playing') return;
+        playerManager.triggerBoost(user, maxShotLimit);
+    } else if (command === 'repeat') {
+        if (gameState !== 'playing') return;
+        playerManager.repeatShot(user, maxShotLimit);
     }
 }
 
@@ -403,7 +414,7 @@ function animate() {
     // State Machine Clock Handlers
     if (gameState === 'lobby') {
         lobbyTimer -= dt;
-        updateTimerUI(lobbyTimer, 'LOBBY PHASE (Type !play)');
+        updateTimerUI(lobbyTimer, 'LOBBY (type !play to join)');
         if (lobbyTimer <= 0) {
             startPlayingPhase();
         }
@@ -475,7 +486,7 @@ window.showNotification = function(msg, hexColor) {
     // Auto-cleanup DOM to prevent memory bloat over infinite stream matches natively
     setTimeout(() => {
         if (li.parentElement) li.remove();
-    }, 5000); // perfectly mirrors the animation duration cleanly
+    }, 10000); // perfectly mirrors the animation duration cleanly
 };
 
 function onWindowResize() {
@@ -488,13 +499,19 @@ function onWindowResize() {
 let autoCamTargetCenter = new THREE.Vector3(0, 0, 0);
 let autoCamTargetPos = new THREE.Vector3(0, 20, 20);
 let autoCamUpdateTimer = 0;
+let autoCamPauseTimer = 0;
 
 function updateDynamicCamera(dt) {
     const autoCamInput = document.getElementById('auto-cam-toggle');
     if (!autoCamInput || !autoCamInput.checked) return;
     
-    if (gameState !== 'lobby' && gameState !== 'playing') return;
+    if (gameState !== 'lobby' && gameState !== 'lobby-waiting' && gameState !== 'playing') return;
     if (!levelGenerator) return;
+
+    if (autoCamPauseTimer > 0) {
+        autoCamPauseTimer -= dt;
+        return; // Temporarily yield camera control entirely to the hardware input
+    }
 
     autoCamUpdateTimer -= dt;
     if (autoCamUpdateTimer <= 0) {
@@ -503,25 +520,28 @@ function updateDynamicCamera(dt) {
         let box = new THREE.Box3();
         let hasPoints = false;
 
-        if (gameState === 'lobby') {
-            const w = levelGenerator.width * levelGenerator.tileSize;
-            const h = levelGenerator.height * levelGenerator.tileSize;
-            box.expandByPoint(new THREE.Vector3(0, 0, 0));
-            box.expandByPoint(new THREE.Vector3(w, 0, h));
-            hasPoints = true;
-        } else if (gameState === 'playing') {
-            const start = levelGenerator.getStartPos();
-            const hole = levelGenerator.holePos;
-            if (start) { box.expandByPoint(start); hasPoints = true; }
-            if (hole) { box.expandByPoint(hole); hasPoints = true; }
-            
-            playerManager.players.forEach(p => {
-                if (p.state !== 'sunk') {
-                    box.expandByPoint(new THREE.Vector3(p.body.position.x, p.body.position.y, p.body.position.z));
-                    hasPoints = true;
+        const start = levelGenerator.getStartPos();
+        const hole = levelGenerator.holePos;
+        if (start) { box.expandByPoint(start); hasPoints = true; }
+        if (hole) { box.expandByPoint(hole); hasPoints = true; }
+        
+        if (levelGenerator.gridData) {
+            for (let x = 0; x < levelGenerator.width; x++) {
+                for (let z = 0; z < levelGenerator.height; z++) {
+                    if (levelGenerator.gridData[x][z] && levelGenerator.gridData[x][z].active) {
+                        box.expandByPoint(new THREE.Vector3(x * levelGenerator.tileSize, 0, z * levelGenerator.tileSize));
+                        hasPoints = true;
+                    }
                 }
-            });
+            }
         }
+        
+        playerManager.players.forEach(p => {
+            if (p.state !== 'sunk') {
+                box.expandByPoint(new THREE.Vector3(p.body.position.x, p.body.position.y, p.body.position.z));
+                hasPoints = true;
+            }
+        });
 
         if (hasPoints) {
             box.getCenter(autoCamTargetCenter);
@@ -539,7 +559,7 @@ function updateDynamicCamera(dt) {
             // Project depth and height precisely onto vertical FOV bounds based on the fixed camera pitch
             let projectedHeight = size.z * Math.sin(rad) + size.y * Math.cos(rad);
             let distY = (projectedHeight / 2) / Math.tan(fov / 2);
-            let baseDistance = Math.max(distX, distY) * 1.75; // 75% wide margin padding dynamically shielding streaming UI geometry clipping
+            let baseDistance = Math.max(distX, distY) * 1.30; // 30% wide margin padding dynamically shielding streaming UI geometry clipping
             if (baseDistance < 10) baseDistance = 10;
             
             let cameraDistance = baseDistance;
@@ -556,4 +576,42 @@ function updateDynamicCamera(dt) {
     // Slow down lerp heavily for a deeply stiff, organic broadcast panning vibe.
     controls.target.lerp(autoCamTargetCenter, dt * 0.15);
     camera.position.lerp(autoCamTargetPos, dt * 0.15);
+}
+
+// --- Test Ball Dev Console ---
+document.addEventListener('keydown', (e) => {
+    if (e.key === '`') {
+        const consoleEl = document.getElementById('test-console');
+        if (consoleEl) {
+            e.preventDefault(); 
+            if (consoleEl.style.display === 'none') {
+                consoleEl.style.display = 'block';
+                document.getElementById('test-console-input').focus();
+            } else {
+                consoleEl.style.display = 'none';
+                document.getElementById('test-console-input').blur();
+            }
+        }
+    }
+});
+
+const testInput = document.getElementById('test-console-input');
+if (testInput) {
+    testInput.addEventListener('keydown', (e) => {
+        if (e.key === '`') {
+            e.preventDefault();
+            return;
+        }
+        if (e.key === 'Enter') {
+            const val = e.target.value.trim();
+            if (val) {
+                if (twitchManager) {
+                    twitchManager.parseMessage('TestBall', val, '#ff00ff');
+                } else if (window.twitchManagerGlobal) {
+                    window.twitchManagerGlobal.parseMessage('TestBall', val, '#ff00ff');
+                }
+                e.target.value = '';
+            }
+        }
+    });
 }

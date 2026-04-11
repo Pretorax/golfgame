@@ -72,13 +72,7 @@ export class TwitchManager {
                 }
 
                 console.log(`[CHAT] ${username}: ${message}`);
-
-                if (message.startsWith('!')) {
-                    const parts = message.split(' ');
-                    const command = parts[0].substring(1).toLowerCase();
-                    const args = parts.slice(1);
-                    this.onCommand(username, command, args, hexColor);
-                }
+                this.parseMessage(username, message, hexColor);
             } else if (rawMessage.includes(`JOIN #${safeChannel}`)) {
                 console.log(`Successfully joined #${safeChannel}!`);
             }
@@ -96,6 +90,35 @@ export class TwitchManager {
     say(message) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN && this.connectedChannel) {
             this.ws.send(`PRIVMSG #${this.connectedChannel} :${message}`);
+        }
+    }
+
+    parseMessage(username, message, hexColor) {
+        const parts = message.split(' ');
+        let commandStr = parts[0].toLowerCase();
+        
+        let isCommand = false;
+        let command = '';
+        let args = [];
+        
+        const compassMap = { 'n': 0, 'ne': 45, 'e': 90, 'se': 135, 's': 180, 'sw': 225, 'w': 270, 'nw': 315 };
+        
+        if (commandStr.startsWith('!')) {
+            command = commandStr.substring(1);
+            isCommand = true;
+            args = parts.slice(1);
+        } else if (['play', 'join', 'shoot', 'shot', 'repeat'].includes(commandStr)) {
+            command = commandStr;
+            isCommand = true;
+            args = parts.slice(1);
+        } else if (parts.length >= 2 && (compassMap.hasOwnProperty(commandStr) || !isNaN(parseFloat(commandStr))) && !isNaN(parseFloat(parts[1]))) {
+            command = 'shoot';
+            isCommand = true;
+            args = parts;
+        }
+
+        if (isCommand) {
+            this.onCommand(username, command, args, hexColor);
         }
     }
 }

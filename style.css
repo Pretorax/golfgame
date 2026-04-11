@@ -323,7 +323,7 @@ input[type="checkbox"], input[type="radio"] {
 .cmd-phase { margin-bottom: 6px; color: var(--text-main); text-shadow: 1.5px 1.5px 3px black; font-family: 'Outfit', sans-serif; white-space: nowrap;}
 .cmd-phase strong { color: #fbbf24; }
 .cmd-phase:last-child { margin-bottom: 0; }
-.cmd-text { color: var(--neon-green); font-family: 'Press Start 2P', cursive; font-size: 13.5px; margin: 0 6px; }
+.cmd-text { color: var(--neon-green); font-family: 'Press Start 2P', cursive; font-size: 13.5px; margin: 0 6px 0 0; }
 
 #hud-compass {
     position: absolute;
@@ -336,7 +336,7 @@ input[type="checkbox"], input[type="radio"] {
     justify-content: center;
     align-items: center;
     pointer-events: none;
-    font-size: 20px;
+    font-size: 26px;
     font-weight: 800;
     font-family: 'Press Start 2P', cursive; /* Use retro pixel font */
     color: white;
@@ -381,14 +381,28 @@ input[type="checkbox"], input[type="radio"] {
     z-index: 10;
 }
 .compass-ring span { position: absolute; transform: translate(-50%, -50%); text-shadow: 1.5px 1.5px 4.5px black; }
-.deg-0 { top: 12%; left: 50%; }
-.deg-45 { top: 22%; left: 78%; }
-.deg-90 { top: 50%; left: 88%; }
-.deg-135 { top: 78%; left: 78%; }
-.deg-180 { top: 88%; left: 50%; }
-.deg-225 { top: 78%; left: 22%; }
-.deg-270 { top: 50%; left: 12%; }
-.deg-315 { top: 22%; left: 22%; }
+.deg-0 { top: 7%; left: 50%; }
+.deg-45 { top: 20%; left: 80%; }
+.deg-90 { top: 50%; left: 93%; }
+.deg-135 { top: 80%; left: 80%; }
+.deg-180 { top: 93%; left: 50%; }
+.deg-225 { top: 80%; left: 20%; }
+.deg-270 { top: 50%; left: 7%; }
+.deg-315 { top: 20%; left: 20%; }
+
+.car-text {
+    font-size: 15px !important;
+    color: var(--neon-green);
+    opacity: 0.85;
+}
+.car-0 { top: 25%; left: 50%; }
+.car-45 { top: 32%; left: 68%; }
+.car-90 { top: 50%; left: 75%; }
+.car-135 { top: 68%; left: 68%; }
+.car-180 { top: 75%; left: 50%; }
+.car-225 { top: 68%; left: 32%; }
+.car-270 { top: 50%; left: 25%; }
+.car-315 { top: 32%; left: 32%; }
 
 /* Live Notifications */
 #hud-notifications {
@@ -415,7 +429,7 @@ input[type="checkbox"], input[type="radio"] {
     border-radius: 6px;
     font-size: 21px;
     text-shadow: 1.5px 1.5px 3px black;
-    animation: fadein 0.3s ease-out, fadeout 0.5s ease-in 4.5s forwards;
+    animation: fadein 0.3s ease-out, fadeout 0.5s ease-in 9.5s forwards;
 }
 
 @keyframes fadein { from { opacity: 0; transform: translateX(-15px); } to { opacity: 1; transform: translateX(0); } }

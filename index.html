@@ -12,8 +12,11 @@
     </div>
 
     <!-- UI Overlay for Streamer Setup -->
-    <div id="setup-ui" class="overlay-panel glass-panel">
-        <h1>⛳ Golf on Stream</h1>
+    <div id="setup-ui" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; display: flex; gap: 2rem; align-items: stretch; transition: opacity 0.3s;">
+        
+        <!-- Main Settings Panel -->
+        <div class="glass-panel" style="background: rgba(15, 23, 42, 0.8); padding: 3.75rem; max-width: 1000px; max-height: 90vh; overflow-y: auto;">
+            <h1>⛳ Golf on Stream</h1>
         
         <div class="setup-columns">
             <div class="setup-column">
@@ -46,51 +49,61 @@
             <div class="setup-column">
                 <div class="setup-section">
                     <h3>Level Generator</h3>
-            <div class="row">
-                <label><input type="radio" name="level-mode" value="procedural" checked> Procedural Mode</label>
-                <label><input type="radio" name="level-mode" value="custom"> Custom Level Code</label>
-            </div>
             
             <div id="procedural-settings">
                 <div class="slider-row">
-                    <label>Scale Base: <span id="val-scale">5</span></label>
+                    <label>Map Size: <span id="val-scale">5</span></label>
                     <input type="range" id="freq-scale" min="1" max="10" value="5" oninput="document.getElementById('val-scale').innerText = this.value">
                 </div>
                 <div class="slider-row">
-                    <label>Water Freq: <span id="val-water">4</span></label>
-                    <input type="range" id="freq-water" min="0" max="10" value="4" oninput="document.getElementById('val-water').innerText = this.value">
+                    <label>Water Amount: <span id="val-water">8</span></label>
+                    <input type="range" id="freq-water" min="0" max="10" value="8" oninput="document.getElementById('val-water').innerText = this.value">
                 </div>
                 <div class="slider-row">
-                    <label>Sand Freq: <span id="val-sand">5</span></label>
-                    <input type="range" id="freq-sand" min="0" max="10" value="5" oninput="document.getElementById('val-sand').innerText = this.value">
+                    <label>Sand Amount: <span id="val-sand">10</span></label>
+                    <input type="range" id="freq-sand" min="0" max="10" value="10" oninput="document.getElementById('val-sand').innerText = this.value">
                 </div>
                 <div class="slider-row">
-                    <label>Hills Freq: <span id="val-hills">5</span></label>
-                    <input type="range" id="freq-hills" min="0" max="10" value="5" oninput="document.getElementById('val-hills').innerText = this.value">
+                    <label>Hills Amount: <span id="val-hills">2</span></label>
+                    <input type="range" id="freq-hills" min="0" max="10" value="2" oninput="document.getElementById('val-hills').innerText = this.value">
                 </div>
                 <div class="slider-row">
-                    <label>Objects Freq: <span id="val-objects">6</span></label>
-                    <input type="range" id="freq-objects" min="0" max="10" value="6" oninput="document.getElementById('val-objects').innerText = this.value">
+                    <label>Objects Amount: <span id="val-objects">5</span></label>
+                    <input type="range" id="freq-objects" min="0" max="10" value="5" oninput="document.getElementById('val-objects').innerText = this.value">
                 </div>
                 <div class="slider-row">
-                    <label>Booster Freq: <span id="val-boosters">5</span></label>
-                    <input type="range" id="freq-boosters" min="0" max="10" value="5" oninput="document.getElementById('val-boosters').innerText = this.value">
+                    <label>Booster Amount: <span id="val-boosters">3</span></label>
+                    <input type="range" id="freq-boosters" min="0" max="10" value="3" oninput="document.getElementById('val-boosters').innerText = this.value">
                 </div>
                 <div class="slider-row">
-                    <label>Path Interruption: <span id="val-chaos">5</span></label>
-                    <input type="range" id="freq-chaos" min="1" max="10" value="5" oninput="document.getElementById('val-chaos').innerText = this.value">
+                    <label>Path Interruption: <span id="val-chaos">6</span></label>
+                    <input type="range" id="freq-chaos" min="1" max="10" value="6" oninput="document.getElementById('val-chaos').innerText = this.value">
                 </div>
             </div>
 
-            <div id="custom-level-settings" style="display: none;">
-                <textarea id="custom-level-code" rows="3" placeholder="Paste Base64/JSON level code from Editor..."></textarea>
-                <a href="editor.html" target="_blank" class="small-link">Open Level Editor ↗</a>
-                </div>
+            </div>
             </div>
         </div>
-        </div>
-
         <button id="start-game-btn" class="primary-btn">Start Game</button>
+        </div>
+
+        <!-- Info Panel -->
+        <div class="glass-panel" style="background: rgba(15, 23, 42, 0.8); padding: 3.75rem; width: 550px; overflow-y: auto;">
+            <h2>📖 How to Play</h2>
+            <p style="font-size: 1.25rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1.5rem;">
+                Welcome to <strong>Golf on Stream</strong>! It's like marbles on stream but mini golf!
+            </p>
+            <p style="font-size: 1.15rem; line-height: 1.6; margin-bottom: 2rem;">
+                Engage your Twitch viewers in an interactive mini-golf adventure driven entirely by chat commands. Your viewers control the balls directly from your twitch chat!
+            </p>
+            <h3>Commands</h3>
+            <ul style="font-size: 1.15rem; line-height: 1.8; color: var(--neon-green); margin-left: 1.5rem; margin-top: 1rem;">
+                <li style="margin-bottom: 10px;"><strong style="color: white; font-family: monospace;">!play</strong> : Join the course</li>
+                <li style="margin-bottom: 10px;"><strong style="color: white; font-family: monospace;">shoot &lt;dir&gt; &lt;pow&gt;</strong> : Take a shot<br><span style="font-size: 14px; color: var(--text-muted);">e.g. <code>shoot n 10</code> or <code>shoot 45 5</code></span></li>
+                <li style="margin-bottom: 0;"><strong style="color: white; font-family: monospace;">!repeat</strong> : Re-take your previous shot</li>
+            </ul>
+        </div>
+
     </div>
 
     <!-- In-Game HUD -->
@@ -98,18 +111,15 @@
         <!-- Clean Solid Top Bar -->
         <div id="hud-top-bar">
             <!-- Left Info & Controls -->
-            <div class="top-bar-left">
-                <div class="info-block" style="color: white; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 18px; margin-bottom: 10px;">
-                    Hole: <span id="hud-hole">1</span> / <span id="hud-holes-total">3</span> &nbsp;|&nbsp; Par: <span id="hud-par">3</span> &nbsp;|&nbsp; Players: <span id="hud-players">0</span>
-                </div>
-                <div id="hud-streamer-controls">
-                    <button id="btn-end-round" class="glass-btn red-btn">Skip</button>
-                    <button id="btn-quit-setup" class="glass-btn gray-btn">Quit</button>
-                    <div style="display: flex; flex-direction: column; margin-left: 10px;">
-                        <span style="font-size: 11px; color: #fbbf24; text-shadow: 1px 1px 2px black; font-family: 'Outfit', sans-serif;">🖱️ L-Click + Drag: Pan | ↕ Scroll: Zoom</span>
-                        <label style="pointer-events: auto; font-size: 14px; margin-top: 2px; display: inline-flex; align-items: center; gap: 5px; text-shadow: 1px 1px 2px black; color: white;">
-                            <input type="checkbox" id="auto-cam-toggle"> Auto-Cam <span style="font-size: 10px; opacity: 0.8">(work in progress)</span>
-                        </label>
+            <div class="top-bar-left" style="display: flex; flex-direction: column; justify-content: center;">
+                <h1 style="color: var(--neon-green); font-family: 'Press Start 2P', cursive; font-size: 32px; text-shadow: 3px 3px 0 #000; margin: 0 0 15px 0; text-align: left;">⛳ Golf on Stream</h1>
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <div class="info-block" style="color: white; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 20px;">
+                        Hole: <span id="hud-hole">1</span> / <span id="hud-holes-total">3</span> &nbsp;|&nbsp; Par: <span id="hud-par">3</span> &nbsp;|&nbsp; Players: <span id="hud-players">0</span>
+                    </div>
+                    <div id="hud-streamer-controls" style="display: flex; gap: 10px;">
+                        <button id="btn-end-round" class="glass-btn red-btn" style="font-size: 11px; padding: 8px 12px; background: rgba(239, 68, 68, 0.8); border: 2px solid rgba(255,255,255,0.2); color: white; border-radius: 6px;">Skip Hole</button>
+                        <button id="btn-quit-setup" class="glass-btn gray-btn" style="font-size: 11px; padding: 8px 12px; background: rgba(100, 100, 100, 0.8); border: 2px solid rgba(255,255,255,0.2); color: white; border-radius: 6px;">Quit</button>
                     </div>
                 </div>
             </div>
@@ -117,27 +127,39 @@
             <!-- Center Clock -->
             <div id="hud-timer-overlay">
                 <h1 id="hud-timer-text">00:00</h1>
-                <p id="hud-timer-label">LOBBY (!play)</p>
                 <button id="btn-start-lobby" class="primary-btn" style="display: none; pointer-events: auto; padding: 15px 30px; margin: 0 auto; font-size: 15px; font-family: 'Press Start 2P', cursive; box-shadow: 0 0 15px rgba(52,211,153,0.5);">START TIMER</button>
+                <p id="hud-timer-label" style="margin-top: 10px;">LOBBY (type !play to join)</p>
             </div>
 
             <!-- Right Compass & Commands -->
             <div class="top-bar-right">
                 <div class="commands-panel glass-panel">
                     <div class="cmd-phase"><span class="cmd-text">!play</span> to join</div>
-                    <div class="cmd-phase"><span class="cmd-text">!shoot &lt;0-359&gt; &lt;1-10&gt;</span></div>
+                    <div class="cmd-phase"><span class="cmd-text">shoot</span> &lt;direction&gt; &lt;power&gt;</div>
+                    <div class="cmd-phase">
+                        <span class="cmd-text" style="font-size: 10px; color: var(--text-muted);">TRY</span> shoot sw 5
+                        <span class="cmd-text" style="font-size: 10px; margin-left: 6px; color: var(--text-muted);">OR</span> shoot 180 10
+                    </div>
                 </div>
                 <div id="hud-compass" class="glass-panel">
                     <div class="compass-ring">
                         <div class="compass-label">SHOT<br>COMPASS</div>
-                        <span class="deg-0">0</span>
-                        <span class="deg-45">45</span>
-                        <span class="deg-90">90</span>
-                        <span class="deg-135">135</span>
-                        <span class="deg-180">180</span>
-                        <span class="deg-225">225</span>
-                        <span class="deg-270">270</span>
-                        <span class="deg-315">315</span>
+                        <span class="deg-0">N</span>
+                        <span class="car-text car-0">0</span>
+                        <span class="deg-45">NE</span>
+                        <span class="car-text car-45">45</span>
+                        <span class="deg-90">E</span>
+                        <span class="car-text car-90">90</span>
+                        <span class="deg-135">SE</span>
+                        <span class="car-text car-135">135</span>
+                        <span class="deg-180">S</span>
+                        <span class="car-text car-180">180</span>
+                        <span class="deg-225">SW</span>
+                        <span class="car-text car-225">225</span>
+                        <span class="deg-270">W</span>
+                        <span class="car-text car-270">270</span>
+                        <span class="deg-315">NW</span>
+                        <span class="car-text car-315">315</span>
                     </div>
                 </div>
             </div>
@@ -171,10 +193,22 @@
         <button id="btn-final-quit" class="primary-btn" style="margin-top: 2rem;">Quit to Setup</button>
     </div>
 
+    <!-- Test Ball Dev Console -->
+    <div id="test-console" class="glass-panel" style="display: none; position: absolute; bottom: 30px; left: 30px; z-index: 9999; padding: 15px;">
+        <h3 style="margin-top: 0; color: #fbbf24; font-size: 14px; font-family: 'Outfit', sans-serif;">Test Ball Console</h3>
+        <input type="text" id="test-console-input" placeholder="Type join or shoot 45 10..." style="width: 250px; background: rgba(0,0,0,0.5); color: white; border: 1px solid #34d399; padding: 5px; font-family: monospace;">
+        <div style="font-size: 10px; color: #aaa; margin-top: 5px; font-family: 'Outfit', sans-serif;">Press Enter to send, ` to hide</div>
+    </div>
+
     <!-- Global Persistent Audio Controls -->
     <div id="global-audio-controls" class="glass-panel" style="position: absolute; bottom: 30px; right: 3rem; z-index: 9999; display: flex; align-items: center; gap: 22px; padding: 15px 30px;">
-        <label style="color: white; font-size: 21px; font-weight: 700; display:flex; align-items: center; gap:12px; cursor: pointer;">
-            <input type="checkbox" id="mute-toggle" style="width: 24px; height: 24px;"> Mute
+        <span style="font-size: 12px; color: #fbbf24; text-shadow: 1px 1px 2px black; font-family: 'Outfit', sans-serif;">🖱️ L-Click + Drag: Pan | ↕ Scroll: Zoom</span>
+        <label style="pointer-events: auto; font-size: 16px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; text-shadow: 1px 1px 2px black; color: white; cursor: pointer;">
+            <input type="checkbox" id="auto-cam-toggle" style="width: 20px; height: 20px;" checked> Auto-Cam
+        </label>
+        <div style="width: 2px; height: 35px; background: var(--glass-border); margin: 0 10px;"></div>
+        <label style="color: white; font-size: 18px; font-weight: 700; display:flex; align-items: center; gap:12px; cursor: pointer;">
+            <input type="checkbox" id="mute-toggle" style="width: 20px; height: 20px;"> Mute Music
         </label>
         <span style="color: var(--neon-green); font-family: 'Press Start 2P', cursive; font-size: 12px;">VOL</span>
         <input type="range" id="master-volume" min="0" max="100" value="10" style="width: 150px;">
@@ -193,17 +227,7 @@
     <script type="module" src="src/main.js"></script>
     
     <script>
-        // Simple UI logic for toggling custom/procedural
-        document.querySelectorAll('input[name="level-mode"]').forEach((elem) => {
-            elem.addEventListener("change", function(event) {
-                var item = event.target.value;
-                document.getElementById('procedural-settings').style.display = item === 'procedural' ? 'block' : 'none';
-                document.getElementById('custom-level-settings').style.display = item === 'custom' ? 'block' : 'none';
-            });
-        });
-        // Initial setup strictly mapping to the checked 'procedural' default
-        document.getElementById('procedural-settings').style.display = 'block';
-        document.getElementById('custom-level-settings').style.display = 'none';
+        // Simple UI logic disabled - UI forces procedural mode
     </script>
 </body>
 </html>

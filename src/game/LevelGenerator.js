@@ -594,7 +594,7 @@ export class LevelGenerator {
         const validSpots = [];
         for (let x = 3; x < w - 3; x++) {
             for (let z = 3; z < h - 3; z++) {
-                if (this.gridData[x][z].active && this.gridData[x][z].type === 'grass' && this.gridData[x][z].elevationAbs === 0 && !this.gridData[x][z].isGolden) {
+                if (this.gridData[x][z].active && this.gridData[x][z].type === 'grass' && this.gridData[x][z].elevationAbs === 0 && this.gridData[x][z].isGolden) {
                     validSpots.push({ x, z });
                 }
             }
@@ -623,7 +623,7 @@ export class LevelGenerator {
                         let rx = cx + dx;
                         let rz = cz + dz;
                         // Restrict bounds squarely returning to strict algorithmic fairway pockets!
-                        if (!this.isInBounds(rx, rz) || !this.gridData[rx][rz].active || this.gridData[rx][rz].type !== 'grass' || this.gridData[rx][rz].isGolden || this.gridData[rx][rz].elevationAbs !== 0) {
+                        if (!this.isInBounds(rx, rz) || !this.gridData[rx][rz].active || this.gridData[rx][rz].type !== 'grass' || this.gridData[rx][rz].elevationAbs !== 0) {
                             success = false;
                         }
                     }
@@ -691,7 +691,7 @@ export class LevelGenerator {
                         let ow = w1 - 1;
                         let rx = spanOverX ? cx + ow : cx + d1;
                         let rz = spanOverX ? cz + d1 : cz + ow;
-                        if (!this.isInBounds(rx, rz) || !this.gridData[rx][rz].active || this.gridData[rx][rz].type !== 'grass' || this.gridData[rx][rz].isGolden || this.gridData[rx][rz].elevationAbs !== 0) {
+                        if (!this.isInBounds(rx, rz) || !this.gridData[rx][rz].active || this.gridData[rx][rz].type !== 'grass' || this.gridData[rx][rz].elevationAbs !== 0) {
                             success = false;
                         }
                     }
@@ -1108,16 +1108,16 @@ export class LevelGenerator {
         this.scene.add(holeMesh);
         this.objects.push({ mesh: holeMesh, body: null });
 
-        const poleGeo = new THREE.CylinderGeometry(0.04, 0.04, 4, 8);
+        const poleGeo = new THREE.CylinderGeometry(0.04, 0.04, 2, 8);
         const poleMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
         const poleMesh = new THREE.Mesh(poleGeo, poleMat);
-        poleMesh.position.set(x, this.holePos.y + 1.5, z); 
+        poleMesh.position.set(x, this.holePos.y + 1.0, z); 
         this.scene.add(poleMesh);
 
         const flagGeo = new THREE.PlaneGeometry(0.6, 0.4, 12, 8); // High density sub-division for smooth physical fabric ripples!
         const flagMat = this.matFlag;
         const flagMesh = new THREE.Mesh(flagGeo, flagMat);
-        flagMesh.position.set(x + 0.3, this.holePos.y + 3.0, z);
+        flagMesh.position.set(x + 0.3, this.holePos.y + 1.7, z);
         flagMesh.castShadow = true; 
         this.scene.add(flagMesh);
         
