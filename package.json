@@ -1,0 +1,20 @@
+{
+  "name": "golfgame",
+  "version": "1.0.0",
+  "description": "Golf on Stream - Interactive Twitch mini-golf game",
+  "main": "src/main.js",
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  },
+  "keywords": [
+    "twitch",
+    "game",
+    "golf",
+    "streaming"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
