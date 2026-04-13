@@ -34,6 +34,19 @@ export class PlayerManager {
         }
     }
 
+    triggerDust(pos) {
+        const geo = new THREE.BoxGeometry(0.08, 0.08, 0.08); // small blocky dust for pixel style
+        const mat = new THREE.MeshBasicMaterial({ color: 0xe3c16f, transparent: true });
+        for (let i = 0; i < 6; i++) {
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            mesh.position.y += 0.05; 
+            this.scene.add(mesh);
+            const vel = new THREE.Vector3((Math.random() - 0.5) * 1.5, Math.random() * 1.5 + 0.5, (Math.random() - 0.5) * 1.5);
+            this.activeSplashes.push({ mesh, vel, life: 1.0 }); 
+        }
+    }
+
     getPlayerCount() {
         return this.players.size;
     }
@@ -48,10 +61,14 @@ export class PlayerManager {
         }
     }
 
-    resetForNextHole(startPos) {
+    resetForNextHole(startPos, isInfiniteMode = false) {
         this.players.forEach(p => {
             p.state = 'idle';
             p.holeShots = 0;
+            if (isInfiniteMode) {
+                p.shots = 0;
+            }
+            p.wasInSand = false;
             
             p.body.position.set(startPos.x, startPos.y + 0.5, startPos.z);
             p.body.velocity.set(0, 0, 0);
@@ -130,7 +147,8 @@ export class PlayerManager {
             lastAngle: null,
             lastPower: null,
             lastIdlePos: new CANNON.Vec3(startPos.x, startPos.y + 0.5, startPos.z),
-            hasUsedEleven: false
+            hasUsedEleven: false,
+            wasInSand: false
         };
         this.players.set(username, playerObj);
     }
@@ -159,6 +177,10 @@ export class PlayerManager {
         p.shots++;
         p.holeShots++;
         p.state = 'moving';
+        
+        if (p.wasInSand) {
+            this.triggerDust(p.body.position);
+        }
 
         // Escalate to active!
         p.body.collisionFilterGroup = CG_ACTIVE_BALL;
@@ -239,8 +261,34 @@ export class PlayerManager {
         
         if (window.showNotification) window.showNotification(`⚠️ ${username} triggered BOOST!`, p.colorHex);
     }
+    
+    applySting(username) {
+        const p = this.players.get(username);
+        if (!p) return;
+        
+        const now = performance.now();
+        if (!p.lastStingTime || (now - p.lastStingTime > 2000)) { // 2s invulnerability
+            p.lastStingTime = now;
+            
+            // Random horizontal nudge
+            const angle = Math.random() * Math.PI * 2;
+            const force = 3.0; // small deflection requested by user
+            
+            p.body.wakeUp();
+            p.body.applyImpulse(
+                new CANNON.Vec3(Math.cos(angle) * force, 0, Math.sin(angle) * force),
+                new CANNON.Vec3(0, 0, 0)
+            );
+            
+            p.state = 'moving';
+            
+            if (window.showNotification) window.showNotification(`🐝 @${username} was stung by a Bee!`, p.colorHex);
+            if (window.twitchManagerGlobal) window.twitchManagerGlobal.say(`🐝 @${username} got stung by a Bee!`);
+            this.triggerDust(p.body.position);
+        }
+    }
 
-    update(dt, holePos, sandTiles = [], boosters = [], teleporter = null, mapBoundsX = 100, mapBoundsZ = 100, maxShotLimit = 14, lavaTiles = []) {
+    update(dt, holePos, sandTiles = [], boosters = [], teleporter = null, mapBoundsX = 100, mapBoundsZ = 100, maxShotLimit = 14, lavaTiles = [], startAreaBounds = null, tileSize = 0.5) {
         
         for (let i = this.activeSplashes.length - 1; i >= 0; i--) {
             let s = this.activeSplashes[i];
@@ -312,6 +360,21 @@ export class PlayerManager {
                 p.nameTag.element.innerText = p.username;
             }
 
+            // Dynamically evaluate ghosting inside the start green natively
+            if (startAreaBounds) {
+                const px = p.body.position.x / tileSize;
+                const pz = p.body.position.z / tileSize;
+                if (px >= startAreaBounds.xMin - 0.5 && px <= startAreaBounds.xMax + 0.5 &&
+                    pz >= startAreaBounds.zMin - 0.5 && pz <= startAreaBounds.zMax + 0.5) {
+                    
+                    p.body.collisionFilterGroup = CG_GHOST_BALL;
+                    p.body.collisionFilterMask = CG_ENVIRONMENT;
+                } else if (p.shots > 0) {
+                    p.body.collisionFilterGroup = CG_ACTIVE_BALL;
+                    p.body.collisionFilterMask = CG_ENVIRONMENT | CG_ACTIVE_BALL;
+                }
+            }
+
             p.body.linearDamping = 0.65;
             p.body.angularDamping = 0.65;
 
@@ -326,7 +389,14 @@ export class PlayerManager {
             if (inLava) {
                 p.state = 'dnf';
                 p.mesh.visible = false;
-                p.nameTag.element.innerText = "🔥 MELTED";
+                p.nameTag.element.innerText = "🔥☠️🔥";
+                
+                setTimeout(() => {
+                    if (p && p.nameTag) {
+                        p.nameTag.visible = false;
+                    }
+                }, 2000);
+
                 this.triggerSplash(p.body.position);
                 if (window.soundManagerGlobal) window.soundManagerGlobal.playHit(4); // Impact sound
                 if (window.showNotification) window.showNotification(`🔥 ${p.username} MELTED!`, p.colorHex);
@@ -345,7 +415,11 @@ export class PlayerManager {
             if (inSand) {
                 p.body.linearDamping = 0.98;
                 p.body.angularDamping = 0.98;
+                if (!p.wasInSand) {
+                    this.triggerDust(p.body.position);
+                }
             }
+            p.wasInSand = inSand;
 
             for(let i=0; i<boosters.length; i++) {
                 let b = boosters[i];

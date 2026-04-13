@@ -7,10 +7,11 @@ import { PlayerManager } from './game/PlayerManager.js';
 import { PhysicsWorld } from './game/PhysicsWorld.js';
 import { TwitchManager } from './TwitchManager.js';
 import { SoundManager } from './game/SoundManager.js';
+import { EnemyManager } from './game/EnemyManager.js';
 
 let scene, camera, renderer, labelRenderer, controls;
 let physicsWorld;
-let levelGenerator, playerManager, twitchManager, soundManager;
+let levelGenerator, playerManager, twitchManager, soundManager, enemyManager;
 
 const clock = new THREE.Clock();
 
@@ -75,9 +76,9 @@ function init() {
     });
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.75); // Increased by 25%
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0); // Increased by 25%
     dirLight.position.set(20, 40, 20); // Mathematically taller trajectory perfectly catching sharp slope angles
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;
@@ -99,6 +100,7 @@ function init() {
     // Managers
     levelGenerator = new LevelGenerator(scene, physicsWorld);
     playerManager = new PlayerManager(scene, physicsWorld);
+    enemyManager = new EnemyManager(scene, physicsWorld);
     twitchManager = new TwitchManager(handleTwitchCommand);
     soundManager = new SoundManager();
     
@@ -236,10 +238,23 @@ function loadHole(holeNum) {
     };
     levelGenerator.generateProcedural(config);
     
+    const freqEnemies = parseInt(document.getElementById('freq-enemies') ? document.getElementById('freq-enemies').value : 2);
+    // Hard ceiling limit of 3 bees scaling proportionately with slider
+    const beeAmount = Math.ceil((freqEnemies / 10) * 3);
+    enemyManager.spawnEnemies(beeAmount, levelGenerator);
+    
     // Teleport any existing players gracefully to the newly generated starting pad
     if (holeNum > 1) {
+        // Announce the winner from the previous round before resetting
+        const playersArr = Array.from(playerManager.players.values());
+        if (playersArr.length > 0) {
+            playersArr.sort((a, b) => a.shots - b.shots);
+            const winner = playersArr[0];
+            window.showNotification(`🏆 Previous Round Winner: ${winner.username} (${winner.shots})`, '#fbbf24');
+        }
+
         hardcoreDelta = 0;
-        playerManager.resetForNextHole(levelGenerator.getStartPos());
+        playerManager.resetForNextHole(levelGenerator.getStartPos(), isInfiniteMode);
     }
     
     window.updatePlayerCount(); // refresh UI
@@ -386,16 +401,21 @@ function handleTwitchCommand(user, command, args, hexColor) {
     if (gameState === 'setup' || gameState === 'transition') return;
 
     if (command === 'play' || command === 'join') {
-        if (gameState !== 'lobby' && gameState !== 'lobby-waiting') return; // Cannot join if game has started
-
         // Only announce if they weren't already playing
         if (!playerManager.players.has(user)) {
-            const catchupShots = (currentHole - 1) * maxShotLimit;
+            // Give them max strokes for structurally skipped holes
+            let catchupShots = (currentHole - 1) * maxShotLimit;
+            
+            // If joining mid-hole while the round is actively live, apply a strict 1-stroke penalty natively
+            if (gameState === 'playing') {
+                catchupShots += 1;
+            }
+
             playerManager.addPlayer(user, hexColor, levelGenerator.getStartPos(), catchupShots);
             window.updatePlayerCount();
             
             if (catchupShots > 0) {
-                console.log(`Welcome @${user}! You've joined late and start with ${catchupShots} strokes for missed holes.`);
+                console.log(`Welcome @${user}! You've joined late and start with ${catchupShots} strokes.`);
             } else {
                 console.log(`Welcome to the course, @${user}! Wait for the timer to finish before shooting!`);
             }
@@ -533,9 +553,10 @@ function animate() {
             const mapX = levelGenerator ? levelGenerator.width * levelGenerator.tileSize : 100;
             const mapZ = levelGenerator ? levelGenerator.height * levelGenerator.tileSize : 100;
             const lavaParams = levelGenerator ? levelGenerator.lavaTiles : [];
-            
-            playerManager.update(dt, holeParams, sandParams, boosterParams, teleporterParams, mapX, mapZ, maxShotLimit, lavaParams);
-            
+            const startAreaBounds = levelGenerator ? levelGenerator.startAreaBounds : null;
+            const tileSize = levelGenerator ? levelGenerator.tileSize : 0.5;
+            playerManager.update(dt, holeParams, sandParams, boosterParams, teleporterParams, mapX, mapZ, maxShotLimit, lavaParams, startAreaBounds, tileSize);
+            if (enemyManager) enemyManager.update(dt, playerManager);
             // Sync dynamic obstacle visuals mathematically
             if (levelGenerator && levelGenerator.objects) {
                 for (let j = levelGenerator.objects.length - 1; j >= 0; j--) {
@@ -668,7 +689,7 @@ function updateDynamicCamera(dt) {
             // Project depth and height precisely onto vertical FOV bounds based on the fixed camera pitch
             let projectedHeight = size.z * Math.sin(rad) + size.y * Math.cos(rad);
             let distY = (projectedHeight / 2) / Math.tan(fov / 2);
-            let baseDistance = Math.max(distX, distY) * 1.30; // 30% wide margin padding dynamically shielding streaming UI geometry clipping
+            let baseDistance = Math.max(distX, distY) * 1.40; // 40% wide margin padding dynamically shielding streaming UI geometry clipping
             if (baseDistance < 10) baseDistance = 10;
             
             let cameraDistance = baseDistance;
@@ -712,12 +733,27 @@ if (testInput) {
             return;
         }
         if (e.key === 'Enter') {
-            const val = e.target.value.trim();
+            let val = e.target.value.trim();
             if (val) {
+                let pName = 'TestBall';
+                let pColor = '#ff00ff';
+                
+                if (val.startsWith('@')) {
+                    const spaceIdx = val.indexOf(' ');
+                    if (spaceIdx !== -1) {
+                        pName = val.substring(1, spaceIdx);
+                        val = val.substring(spaceIdx + 1).trim();
+                        
+                        // Assign a consistent pseudo-random color based on name
+                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                        pColor = colors[pName.length % colors.length];
+                    }
+                }
+
                 if (twitchManager) {
-                    twitchManager.parseMessage('TestBall', val, '#ff00ff');
+                    twitchManager.parseMessage(pName, val, pColor);
                 } else if (window.twitchManagerGlobal) {
-                    window.twitchManagerGlobal.parseMessage('TestBall', val, '#ff00ff');
+                    window.twitchManagerGlobal.parseMessage(pName, val, pColor);
                 }
                 e.target.value = '';
             }

@@ -22,8 +22,8 @@ export class LevelGenerator {
         this.matGrassLight = new THREE.MeshLambertMaterial({ map: this.createNoiseTexture('#4c9642', '#468c3d') });
         this.matPutting = new THREE.MeshLambertMaterial({ map: this.createNoiseTexture('#62c256', '#5db852') });
         this.matWall = new THREE.MeshLambertMaterial({ color: 0xffffff }); 
-        this.matRamp = new THREE.MeshLambertMaterial({ map: this.createArrowTexture() }); // Structurally distinct patterned grass with directional chevron arrows natively!
-        this.matSand = new THREE.MeshLambertMaterial({ map: this.createNoiseTexture('#e3c16f', '#d1ae5c') });
+        this.matRamp = new THREE.MeshLambertMaterial({ map: this.createArrowTexture() }); 
+        this.matSand = new THREE.MeshLambertMaterial({ map: this.createSandTexture('#e3c16f', '#d1ae5c') });
         this.waterTex = this.createWaveTexture();
         this.matWater = new THREE.MeshLambertMaterial({ map: this.waterTex, transparent: false, opacity: 1.0 });
         this.timeAccumulator = 0; // Absolute time physics tracker
@@ -124,6 +124,65 @@ export class LevelGenerator {
         tex.colorSpace = THREE.SRGBColorSpace;
         return tex;
     }
+
+    createSandTexture(baseColorHex, darkColorHex) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        
+        // 1. Base Sand Color
+        ctx.fillStyle = baseColorHex;
+        ctx.fillRect(0,0,128,128);
+        
+        // 2. Thick, soft, smooth diagonal dunes (from inspiration image)
+        ctx.strokeStyle = darkColorHex;
+        ctx.lineWidth = 18; // Very thick bands
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = 0.22; // Extremely subtle low-contrast layering
+        
+        const drawSmoothDunes = (xOff, yOff) => {
+            for (let y = 0; y < 128; y += 32) {
+                ctx.beginPath();
+                for (let x = 0; x <= 128; x += 8) {
+                    // Singular soft, lazy sine wave across the whole tile
+                    let wave = Math.sin((x / 128) * Math.PI * 2) * 8; 
+                    // Stepping down exactly one Y-band spacing (32px) across one tile perfectly aligns wrapping!
+                    let slope = x * (32 / 128); 
+                    
+                    let px = x + xOff;
+                    let py = y + wave + slope + yOff;
+                    
+                    if (x === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+            }
+        };
+
+        // Complete 3x3 wrapping kernel guarantees 100% thick stroke/cap bleed conformity over 0/128 edges!
+        const offsets = [-128, 0, 128];
+        for (let ox of offsets) {
+            for (let oy of offsets) {
+                drawSmoothDunes(ox, oy);
+            }
+        }
+        
+        // 3. Dense Sand Speckle Grain (Top Layer)
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = darkColorHex;
+        for(let i = 0; i < 900; i++) { // Scattered sand grains on top
+            ctx.fillRect(Math.floor(Math.random() * 128), Math.floor(Math.random() * 128), 2, 2);
+        }
+        
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.minFilter = THREE.NearestFilter;
+        tex.magFilter = THREE.NearestFilter;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return tex;
+    }
     
     createArrowTexture() {
         const canvas = document.createElement('canvas');
@@ -137,17 +196,17 @@ export class LevelGenerator {
             ctx.fillRect(Math.floor(Math.random()*128), Math.floor(Math.random()*128), 2, 2);
         }
         
-        ctx.lineWidth = 24; // Doubled thickness structurally
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-        ctx.lineJoin = 'miter';
+        // Delete chevron completely and draw 4 crisp white 16px corner notches instead
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         
-        for(let y=0; y<128; y+=128) { // Singular massive chevron seamlessly spanning each block structurally
-            ctx.beginPath();
-            ctx.moveTo(16, y + 104);
-            ctx.lineTo(64, y + 24);
-            ctx.lineTo(112, y + 104);
-            ctx.stroke();
-        }
+        // Top-Left Notched Corner
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(24,0); ctx.lineTo(0,24); ctx.fill();
+        // Top-Right Notched Corner
+        ctx.beginPath(); ctx.moveTo(128,0); ctx.lineTo(104,0); ctx.lineTo(128,24); ctx.fill();
+        // Bottom-Right Notched Corner
+        ctx.beginPath(); ctx.moveTo(128,128); ctx.lineTo(104,128); ctx.lineTo(128,104); ctx.fill();
+        // Bottom-Left Notched Corner
+        ctx.beginPath(); ctx.moveTo(0,128); ctx.lineTo(24,128); ctx.lineTo(0,104); ctx.fill();
         
         const tex = new THREE.CanvasTexture(canvas);
         tex.wrapS = THREE.RepeatWrapping;
@@ -209,19 +268,53 @@ export class LevelGenerator {
             positions.needsUpdate = true;
             this.globalFlagMesh.geometry.computeVertexNormals(); // Refresh lighting cleanly!
         }
-        this.boosterOffset += dt * 30; 
-        if (this.boosterOffset > 64) this.boosterOffset -= 64;
+        this.boosterOffset += dt * 64; 
+        if (this.boosterOffset >= 64) this.boosterOffset -= 64;
         const ctx = this.boosterCtx;
-        ctx.fillStyle = '#ffbd00';
+        
+        ctx.fillStyle = '#151515'; // Dark metallic belt track
         ctx.fillRect(0,0,64,64);
-        ctx.fillStyle = '#ff3300';
-        for(let x=-64; x<128; x+=32) {
-            let cx = x + this.boosterOffset;
-            ctx.beginPath();
-            ctx.moveTo(cx, 16); ctx.lineTo(cx + 16, 32); ctx.lineTo(cx, 48);
-            ctx.lineTo(cx - 8, 48); ctx.lineTo(cx + 8, 32); ctx.lineTo(cx - 8, 16);
-            ctx.fill();
+        
+        for(let x = -64; x < 128; x += 32) {
+            let cx = Math.floor(x + this.boosterOffset);
+            
+            // Pure Purple alternating pixel art!
+            let colorIndex = Math.floor((x + 64) / 32);
+            ctx.fillStyle = (colorIndex % 2 === 0) ? '#a64dff' : '#7300e6';
+            
+            // True Pixel Art Grid Mapping (Full width of tile!)
+            for (let y = 0; y < 8; y++) {
+                let offset = (y < 4) ? y : (7 - y);
+                let px = cx + (offset * 8); // 8-pixel scale lateral chunk steps
+                ctx.fillRect(px, y * 8, 16, 8); // 16x8 block
+            }
         }
+        
+        // Edge trim guards simulating metallic track rails
+        ctx.fillStyle = '#4a4a4a';
+        ctx.fillRect(0, 0, 64, 4);
+        ctx.fillStyle = '#222222';
+        ctx.fillRect(0, 4, 64, 2);
+        
+        ctx.fillStyle = '#4a4a4a';
+        ctx.fillRect(0, 60, 64, 4);
+        ctx.fillStyle = '#222222';
+        ctx.fillRect(0, 58, 64, 2);
+        
+        if (this.teleporterArrows && this.teleporterArrows.length > 0) {
+            for (let i = 0; i < this.teleporterArrows.length; i++) {
+                let ta = this.teleporterArrows[i];
+                let cycle = Math.sin(this.timeAccumulator * 3.75);
+                
+                let animOffset = ((cycle + 1.0) / 2.0) * 0.12; 
+                let signedAnimDist = ta.isEntrance ? -animOffset : animOffset;
+                let pushDist = 0.62 + signedAnimDist; 
+                
+                ta.mesh.position.x = ta.cx + (ta.dx * this.tileSize * pushDist);
+                ta.mesh.position.z = ta.cz + (ta.dz * this.tileSize * pushDist);
+            }
+        }
+        
         this.boosterTex.needsUpdate = true;
     }
 
@@ -236,7 +329,8 @@ export class LevelGenerator {
         this.gridData = [];
         this.teleporter = null;
         this.lavaTiles = [];
-        this.globalFlagMesh = null; // Clean up safely
+        this.globalFlagMesh = null; 
+        this.teleporterArrows = [];
     }
 
     triggerHardcoreLavaSpawn(playersData) {
@@ -513,6 +607,7 @@ export class LevelGenerator {
         this.generateSimplerHazards(w, h, config.sand, config.water);
         this.addDynamicTiles(w, h, config.boosters); 
         this.generateTeleporters(w, h);
+        this.generateGate(w, h);
 
         // WIDESCREEN TRANSPOSITION: Measure utilized bounds to mathematically guarantee lateral widescreen flow safely!
         let minX = w, maxX = -1, minZ = h, maxZ = -1;
@@ -542,6 +637,9 @@ export class LevelGenerator {
                     // Geometrically mathematically mapping Directional vectors organically 90deg CW natively!
                     if (newCell.dir !== null && newCell.dir !== undefined) {
                         newCell.dir = (newCell.dir + 1) % 4;
+                    }
+                    if (newCell.hasGate) {
+                         newCell.gateAxis = (newCell.gateAxis === 'horizontal') ? 'vertical' : 'horizontal';
                     }
                     newGrid[nx][nz] = newCell;
                 }
@@ -796,6 +894,7 @@ export class LevelGenerator {
                             this.gridData[rx][rz].active = true;
                             this.gridData[rx][rz].type = 'grass';
                             this.gridData[rx][rz].elevationAbs = plateauElev;
+                            this.gridData[rx][rz].hillTop = true; // explicitly flag flat hill summits natively
                         }
                     }
                     
@@ -907,7 +1006,7 @@ export class LevelGenerator {
                 for(let len=0; len<3; len++) {
                     let rx = bx + (stepX*len);
                     let rz = bz + (stepZ*len);
-                    if (!this.isInBounds(rx, rz) || !this.gridData[rx][rz].active || this.gridData[rx][rz].isGolden || this.gridData[rx][rz].type !== 'grass') {
+                    if (!this.isInBounds(rx, rz) || !this.gridData[rx][rz].active || !this.gridData[rx][rz].isGolden || this.gridData[rx][rz].type !== 'grass') {
                         checkValid = false;
                         break;
                     }
@@ -945,6 +1044,82 @@ export class LevelGenerator {
             
             this.gridData[inTile.x][inTile.z].type = 'teleporter_in';
             this.gridData[outTile.x][outTile.z].type = 'teleporter_out';
+        }
+    }
+
+    generateGate(w, h) {
+        if (Math.random() > 0.25) return; // 25% chance of spawning globally
+        
+        let validSlices = [];
+        
+        // Scan horizontal slices (X changes laterally, Z is mathematically constant)
+        for (let z = 3; z < h - 3; z++) {
+            let rowGrass = [];
+            for (let x = 0; x < w; x++) {
+                if (this.gridData[x][z].active && this.gridData[x][z].type === 'grass' && this.gridData[x][z].elevationAbs === 0) {
+                    rowGrass.push({x, z});
+                }
+            }
+            if (rowGrass.length > 1 && rowGrass.length < 6) {
+                let isContiguous = true;
+                for (let i = 1; i < rowGrass.length; i++) {
+                    if (rowGrass[i].x !== rowGrass[i-1].x + 1) { isContiguous = false; break; }
+                }
+                
+                let flowNorthSouth = true; // For horizontal slice wall, the fairway flow must be structurally N/S!
+                for (let tile of rowGrass) {
+                     if (this.gridData[tile.x][tile.z].dir !== 0 && this.gridData[tile.x][tile.z].dir !== 2) { flowNorthSouth = false; }
+                }
+                
+                if (isContiguous && flowNorthSouth) {
+                    validSlices.push({ axis: 'horizontal', tiles: rowGrass });
+                }
+            }
+        }
+        
+        // Scan vertical slices (Z changes laterally, X is mathematically constant)
+        for (let x = 3; x < w - 3; x++) {
+            let colGrass = [];
+            for (let z = 0; z < h; z++) {
+                if (this.gridData[x][z].active && this.gridData[x][z].type === 'grass' && this.gridData[x][z].elevationAbs === 0) {
+                    colGrass.push({x, z});
+                }
+            }
+            if (colGrass.length > 1 && colGrass.length < 6) {
+                let isContiguous = true;
+                for (let i = 1; i < colGrass.length; i++) {
+                    if (colGrass[i].z !== colGrass[i-1].z + 1) { isContiguous = false; break; }
+                }
+                
+                let flowEastWest = true; // For a vertical slice wall, the fairway flow must be structurally E/W!
+                for (let tile of colGrass) {
+                     if (this.gridData[tile.x][tile.z].dir !== 1 && this.gridData[tile.x][tile.z].dir !== 3) { flowEastWest = false; }
+                }
+                
+                if (isContiguous && flowEastWest) {
+                    validSlices.push({ axis: 'vertical', tiles: colGrass });
+                }
+            }
+        }
+        
+        if (validSlices.length > 0) {
+            // Pick exactly one verified straight slice blindly
+            let slice = validSlices[Math.floor(Math.random() * validSlices.length)];
+            let goldenTiles = slice.tiles.filter(t => this.gridData[t.x][t.z].isGolden);
+            
+            if (goldenTiles.length > 0) {
+                // Pick the centroid golden path tile to protect and leave seamlessly open!
+                let openIndex = Math.floor(goldenTiles.length / 2);
+                let openTile = goldenTiles[openIndex];
+                
+                // Mark every other grass block in this slice to aggressively spawn a bounding wall on top structurally!
+                for (let tile of slice.tiles) {
+                    if (tile.x !== openTile.x || tile.z !== openTile.z) {
+                        this.gridData[tile.x][tile.z].hasGate = true;
+                        this.gridData[tile.x][tile.z].gateAxis = slice.axis;
+                    }
+                }
+            }
         }
     }
 
@@ -1074,7 +1249,7 @@ export class LevelGenerator {
 
                 let mat = this.matGrassDark;
                 if (cell.type === 'grass') {
-                    mat = ((x + z) % 2 === 0) ? this.matGrassLight : this.matGrassDark;
+                    mat = cell.hillTop ? this.matRamp : (((x + z) % 2 === 0) ? this.matGrassLight : this.matGrassDark);
                 } else if (cell.type === 'start_zone' || cell.type === 'putting_green') {
                     mat = this.matPutting;
                 } else if (cell.type === 'sand') {
@@ -1111,7 +1286,10 @@ export class LevelGenerator {
 
                 // Standard Rendering
                 if (cell.type !== 'slope') {
-                    const geometry = new THREE.BoxGeometry(this.tileSize, yHeight, this.tileSize);
+                    let gw = this.tileSize;
+                    if (cell.type === 'booster') gw += 0.002; // Micro-overlap to perfectly crush tile boundary rendering glitches
+                    
+                    const geometry = new THREE.BoxGeometry(gw, yHeight, gw);
                     const mesh = new THREE.Mesh(geometry, mat);
                     mesh.position.set(cx, actualY, cz);
                     cell.meshReference = mesh;
@@ -1149,6 +1327,84 @@ export class LevelGenerator {
                         if (!this.teleporter) this.teleporter = {};
                         if (isEntrance) this.teleporter.in = { x: cx, z: cz, cy: actualY + yHeight/2 };
                         if (!isEntrance) this.teleporter.out = { x: cx, z: cz, cy: actualY + yHeight/2 };
+
+                        const dirs = [
+                            { dx: 0, dz: -1, rot: 0 },         // North grass -> point South (+Z)
+                            { dx: 1, dz: 0, rot: -Math.PI/2 }, // East grass -> point West (-X)
+                            { dx: 0, dz: 1, rot: Math.PI },    // South grass -> point North (-Z)
+                            { dx: -1, dz: 0, rot: Math.PI/2 }  // West grass -> point East (+X)
+                        ];
+
+                        const triShape = new THREE.Shape();
+                        triShape.moveTo(0, 0); 
+                        triShape.lineTo(-this.tileSize*0.12, -this.tileSize*0.24); 
+                        triShape.lineTo(this.tileSize*0.12, -this.tileSize*0.24); 
+                        triShape.lineTo(0, 0);
+                        const triGeo = new THREE.ShapeGeometry(triShape);
+                        triGeo.rotateX(-Math.PI / 2); // Flatten to XZ, map Y to -Z
+                        triGeo.translate(0, 0, -this.tileSize*0.12); // Center pivot
+
+                        for (let i = 0; i < dirs.length; i++) {
+                            let d = dirs[i];
+                            let gx = Math.round(cx / this.tileSize) + d.dx;
+                            let gz = Math.round(cz / this.tileSize) + d.dz;
+                            if (this.isInBounds(gx, gz) && this.gridData[gx][gz].active && this.gridData[gx][gz].type === 'grass') {
+                                const arrMat = new THREE.MeshBasicMaterial({ 
+                                    color: isEntrance ? 0xffa500 : 0x00a8ff, 
+                                    transparent: true, 
+                                    opacity: 0.8,
+                                    depthWrite: false,
+                                    side: THREE.DoubleSide
+                                });
+                                const arrMesh = new THREE.Mesh(triGeo, arrMat);
+                                
+                                let finalRot = isEntrance ? d.rot + Math.PI : d.rot; // Native logical flip!
+                                arrMesh.rotation.y = finalRot;
+                                
+                                arrMesh.position.set(cx, actualY + (yHeight/2) + 0.015, cz);
+                                
+                                this.scene.add(arrMesh);
+                                this.objects.push({ mesh: arrMesh, body: null });
+                                
+                                if (!this.teleporterArrows) this.teleporterArrows = [];
+                                this.teleporterArrows.push({
+                                    mesh: arrMesh,
+                                    cx: cx,
+                                    cz: cz,
+                                    dx: d.dx,
+                                    dz: d.dz,
+                                    isEntrance: isEntrance,
+                                    rot: finalRot,
+                                    offsetParams: Math.random() // Phase offset
+                                });
+                            }
+                        }
+                    }
+                    
+                    if (cell.hasGate) {
+                         const curbWidth = 0.15;
+                         const dynamicCurbHeight = 1.2 + cell.elevationAbs;
+                         const halfY = dynamicCurbHeight / 2;
+                         const length = this.tileSize + 0.002; // Very slight overlap seamlessly fuses corner intersections
+                         
+                         const geo = new THREE.BoxGeometry(curbWidth, dynamicCurbHeight, length);
+                         const gateMesh = new THREE.Mesh(geo, this.matWall);
+                         gateMesh.position.set(cx, halfY, cz);
+                         
+                         if (cell.gateAxis === 'horizontal') {
+                             gateMesh.rotation.y = Math.PI / 2;
+                         }
+                         
+                         gateMesh.castShadow = true;
+                         gateMesh.receiveShadow = true;
+                         this.scene.add(gateMesh);
+                         
+                         const shape = new CANNON.Box(new CANNON.Vec3(curbWidth/2, dynamicCurbHeight/2, length/2));
+                         const gateBody = new CANNON.Body({ mass: 0, shape: shape, material: PhysicsWorld.wallMaterial });
+                         gateBody.position.copy(gateMesh.position);
+                         gateBody.quaternion.copy(gateMesh.quaternion);
+                         this.physicsWorld.addBody(gateBody);
+                         this.objects.push({ mesh: gateMesh, body: gateBody });
                     }
                     
                     mesh.castShadow = true;
@@ -1163,16 +1419,19 @@ export class LevelGenerator {
 
                 } else {
                     // SLOPES WEDGE RENDER MATH (Base mapped pointing East native +X)
-                    const shapeGeo = new THREE.Shape();
-                    const climb = cell.rampClimb; // natively mapping steepness values securely onto extrusions!
-                    shapeGeo.moveTo(-this.tileSize/2, -0.5);
-                    shapeGeo.lineTo(this.tileSize/2, -0.5);
-                    shapeGeo.lineTo(this.tileSize/2,  -0.5 + 1.0 + climb); // 1.0 is yHeight, climbing base!
-                    shapeGeo.lineTo(-this.tileSize/2, 0.5);
-                    
-                    const extrudeSettings = { depth: this.tileSize, bevelEnabled: false };
-                    const slopeGeo = new THREE.ExtrudeGeometry(shapeGeo, extrudeSettings);
-                    slopeGeo.translate(0, 0, -this.tileSize/2); 
+                    const climb = cell.rampClimb;
+                    // Deform a native BoxGeometry to completely preserve pristine 1:1 UV Mapping natively!
+                    const slopeGeo = new THREE.BoxGeometry(this.tileSize, 1.0, this.tileSize);
+                    const pos = slopeGeo.attributes.position;
+                    for (let i = 0; i < pos.count; i++) {
+                        let vx = pos.getX(i);
+                        let vy = pos.getY(i);
+                        // Elevate only the top-forward vertices to generate the slope strictly
+                        if (vy > 0 && vx > 0.1) {
+                            pos.setY(i, vy + climb);
+                        }
+                    }
+                    slopeGeo.computeVertexNormals();
 
                     const mesh = new THREE.Mesh(slopeGeo, mat);
                     mesh.position.set(cx, actualY, cz);
@@ -1320,9 +1579,10 @@ export class LevelGenerator {
         this.objects.push({ mesh: holeMesh, body: null });
 
         const poleGeo = new THREE.CylinderGeometry(0.04, 0.04, 2, 8);
-        const poleMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+        const poleMat = new THREE.MeshLambertMaterial({ color: 0xffffff }); // Pure white
         const poleMesh = new THREE.Mesh(poleGeo, poleMat);
         poleMesh.position.set(x, this.holePos.y + 1.0, z); 
+        poleMesh.castShadow = true; // Cast shadows natively
         this.scene.add(poleMesh);
 
         const flagGeo = new THREE.PlaneGeometry(0.6, 0.4, 12, 8); // High density sub-division for smooth physical fabric ripples!
