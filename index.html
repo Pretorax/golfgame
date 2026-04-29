@@ -117,7 +117,7 @@
             <h3>Commands</h3>
             <ul style="font-size: 1.15rem; line-height: 1.8; color: var(--neon-green); margin-left: 1.5rem; margin-top: 1rem;">
                 <li style="margin-bottom: 10px;"><strong style="color: white; font-family: monospace;">!play</strong> : Join the course</li>
-                <li style="margin-bottom: 10px;"><strong style="color: white; font-family: monospace;">shoot &lt;dir&gt; &lt;pow&gt;</strong> : Take a shot<br><span style="font-size: 14px; color: var(--text-muted);">e.g. <code>shoot n 10</code> or <code>shoot 45 5</code></span></li>
+                <li style="margin-bottom: 10px;"><strong style="color: white; font-family: monospace;">&lt;angle 0-360&gt; &lt;power 1-10&gt;</strong> : Take a shot<br><span style="font-size: 14px; color: var(--text-muted);">e.g. <code>sw 5</code> or <code>180 10</code></span></li>
                 <li style="margin-bottom: 0;"><strong style="color: white; font-family: monospace;">!repeat</strong> : Re-take your previous shot</li>
             </ul>
         </div>
@@ -156,10 +156,10 @@
             <div class="top-bar-right">
                 <div class="commands-panel glass-panel">
                     <div class="cmd-phase"><span class="cmd-text">!play</span> to join</div>
-                    <div class="cmd-phase"><span class="cmd-text">shoot</span> &lt;direction&gt; &lt;power&gt;</div>
+                    <div class="cmd-phase">&lt;angle 0-360&gt; &lt;power 1-10&gt;</div>
                     <div class="cmd-phase">
-                        <span class="cmd-text" style="font-size: 10px; color: var(--text-muted);">TRY</span> shoot sw 5
-                        <span class="cmd-text" style="font-size: 10px; margin-left: 6px; color: var(--text-muted);">OR</span> shoot 180 10
+                        <span class="cmd-text" style="font-size: 10px; color: var(--text-muted);">TRY</span> sw 5
+                        <span class="cmd-text" style="font-size: 10px; margin-left: 6px; color: var(--text-muted);">OR</span> 180 10
                     </div>
                 </div>
                 <div id="hud-compass" class="glass-panel">
@@ -188,7 +188,7 @@
 
         <!-- Hanging Scorecard -->
         <div id="hud-scorecard" class="glass-panel" style="display: none;">
-            <h3>Top 5</h3>
+            <h3>Leaderboard</h3>
             <ul id="scorecard-list">
                 <!-- dynamic -->
             </ul>
@@ -221,6 +221,12 @@
         <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
             <input type="checkbox" id="infinite-toggle" style="transform: scale(1.2); cursor: pointer;">
             <label for="infinite-toggle" style="color: #fbbf24; font-family: 'Outfit', sans-serif; font-size: 14px; margin: 0; cursor: pointer;">Infinite Mode (Loop)</label>
+            <div style="width: 10px;"></div>
+            <input type="checkbox" id="collision-toggle" style="transform: scale(1.2); cursor: pointer;" checked>
+            <label for="collision-toggle" style="color: #34d399; font-family: 'Outfit', sans-serif; font-size: 14px; margin: 0; cursor: pointer;">Player Collision</label>
+            <div style="width: 10px;"></div>
+            <input type="checkbox" id="small-text-toggle" style="transform: scale(1.2); cursor: pointer;">
+            <label for="small-text-toggle" style="color: #60a5fa; font-family: 'Outfit', sans-serif; font-size: 14px; margin: 0; cursor: pointer;">Small Text</label>
         </div>
     </div>
 

@@ -157,6 +157,14 @@ function init() {
         }
     });
 
+    document.getElementById('small-text-toggle').addEventListener('change', (e) => {
+        if (e.target.checked) {
+            document.body.classList.add('small-text-mode');
+        } else {
+            document.body.classList.remove('small-text-mode');
+        }
+    });
+
     document.getElementById('start-game-btn').addEventListener('click', startGame);
     document.getElementById('btn-end-round').addEventListener('click', endRoundEarly);
     document.getElementById('btn-quit-setup').addEventListener('click', quitToSetup);
@@ -254,7 +262,7 @@ function loadHole(holeNum) {
         }
 
         hardcoreDelta = 0;
-        playerManager.resetForNextHole(levelGenerator.getStartPos(), isInfiniteMode);
+        playerManager.resetForNextHole(() => levelGenerator.getStartPos(), isInfiniteMode);
     }
     
     window.updatePlayerCount(); // refresh UI
@@ -460,14 +468,30 @@ window.updatePlayerCount = function() {
     const playersArr = Array.from(playerManager.players.values());
     playersArr.sort((a, b) => a.shots - b.shots);
     
-    const top5 = playersArr.slice(0, 5);
+    const topN = playersArr.slice(0, 50);
     const listEl = document.getElementById('scorecard-list');
     listEl.innerHTML = '';
     
-    // Also update the Title
-    document.querySelector('#hud-scorecard h3').innerText = 'Top 5';
+    // Dynamic sizing calculation
+    let count = topN.length;
+    let titleSize = 15;
+    let fontSize = 21;
+    let marginB = 6;
     
-    top5.forEach(p => {
+    if (count > 5) {
+        let t = (count - 5) / 45; // 0 to 1
+        fontSize = 21 - (t * 9);
+        marginB = 6 - (t * 6);
+        titleSize = 15 - (t * 3);
+    }
+    
+    listEl.style.setProperty('--dynamic-font-size', `${fontSize}px`);
+    listEl.style.setProperty('--dynamic-margin', `${marginB}px`);
+    const titleEl = document.querySelector('#hud-scorecard h3');
+    titleEl.style.setProperty('--dynamic-title-size', `${titleSize}px`);
+    titleEl.innerText = 'Leaderboard';
+    
+    topN.forEach(p => {
         const li = document.createElement('li');
         const nameSpan = document.createElement('span');
         nameSpan.className = 'scorecard-name';
@@ -735,6 +759,41 @@ if (testInput) {
         if (e.key === 'Enter') {
             let val = e.target.value.trim();
             if (val) {
+                if (val.toLowerCase().startsWith('addbots ')) {
+                    const count = parseInt(val.split(' ')[1]);
+                    if (!isNaN(count)) {
+                        for (let i = 0; i < count; i++) {
+                            const botName = 'Bot' + Math.floor(Math.random() * 10000);
+                            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                            const pColor = colors[Math.floor(Math.random() * colors.length)];
+                            if (twitchManager) {
+                                twitchManager.parseMessage(botName, 'join', pColor);
+                            } else if (window.twitchManagerGlobal) {
+                                window.twitchManagerGlobal.parseMessage(botName, 'join', pColor);
+                            }
+                        }
+                        e.target.value = '';
+                        return;
+                    }
+                }
+
+                if (val.toLowerCase() === 'shootbots') {
+                    if (gameState === 'playing') {
+                        playerManager.players.forEach((p, username) => {
+                            if (username.startsWith('Bot') && p.state !== 'sunk' && p.state !== 'dnf') {
+                                const randomAngle = Math.floor(Math.random() * 360);
+                                const randomPower = Math.floor(Math.random() * 50) + 15; // 15 to 65 power
+                                playerManager.shoot(username, randomAngle, randomPower, maxShotLimit);
+                            }
+                        });
+                        console.log("All bots took a random shot!");
+                    } else {
+                        console.log("Cannot shoot outside of 'playing' phase.");
+                    }
+                    e.target.value = '';
+                    return;
+                }
+
                 let pName = 'TestBall';
                 let pColor = '#ff00ff';
                 

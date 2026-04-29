@@ -437,9 +437,13 @@ export class LevelGenerator {
     }
 
     generateProcedural(config = { scale: 5, water: 5, sand: 5, hills: 5, objects: 5, boosters: 5 }) {
-        // Build map bounds based linearly on the slider (1-10) with innate variety
-        const baseW = 16 + (config.scale * 4); // Scale 5 -> 36. Scale 10 -> 56. Scale 1 -> 20.
-        const baseH = 16 + (config.scale * 4);
+        // Build map bounds. Scale linearly for 1-5, and ramp aggressively for 6-10
+        let scaleMod = config.scale * 4;
+        if (config.scale > 5) {
+            scaleMod += Math.pow(config.scale - 5, 2) * 1.75; 
+        }
+        const baseW = 16 + Math.floor(scaleMod);
+        const baseH = 16 + Math.floor(scaleMod);
         const sizes = [ 
             { w: baseW - 4, h: baseH - 4 }, 
             { w: baseW, h: baseH }, 

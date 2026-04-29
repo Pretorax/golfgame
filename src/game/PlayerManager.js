@@ -61,8 +61,9 @@ export class PlayerManager {
         }
     }
 
-    resetForNextHole(startPos, isInfiniteMode = false) {
+    resetForNextHole(getStartPosFn, isInfiniteMode = false) {
         this.players.forEach(p => {
+            const startPos = typeof getStartPosFn === 'function' ? getStartPosFn() : getStartPosFn;
             p.state = 'idle';
             p.holeShots = 0;
             if (isInfiniteMode) {
@@ -182,9 +183,13 @@ export class PlayerManager {
             this.triggerDust(p.body.position);
         }
 
+        let collisionEnabled = true;
+        const toggle = document.getElementById('collision-toggle');
+        if (toggle) collisionEnabled = toggle.checked;
+
         // Escalate to active!
         p.body.collisionFilterGroup = CG_ACTIVE_BALL;
-        p.body.collisionFilterMask = CG_ENVIRONMENT | CG_ACTIVE_BALL;
+        p.body.collisionFilterMask = CG_ENVIRONMENT | (collisionEnabled ? CG_ACTIVE_BALL : 0);
 
         let power;
         if (powerLevel === 11) {
@@ -330,8 +335,12 @@ export class PlayerManager {
                                 const force = (1.0 - (Math.sqrt(distSq) / 4.0)) * 25.0; 
 
                                 otherp.body.wakeUp();
+                                let collisionEnabled = true;
+                                const toggle = document.getElementById('collision-toggle');
+                                if (toggle) collisionEnabled = toggle.checked;
+
                                 otherp.body.collisionFilterGroup = CG_ACTIVE_BALL;
-                                otherp.body.collisionFilterMask = CG_ENVIRONMENT | CG_ACTIVE_BALL;
+                                otherp.body.collisionFilterMask = CG_ENVIRONMENT | (collisionEnabled ? CG_ACTIVE_BALL : 0);
                                 otherp.state = 'moving';
                                 otherp.body.applyImpulse(
                                     new CANNON.Vec3((dx/len) * force, 5, (dz/len) * force),
@@ -370,8 +379,12 @@ export class PlayerManager {
                     p.body.collisionFilterGroup = CG_GHOST_BALL;
                     p.body.collisionFilterMask = CG_ENVIRONMENT;
                 } else if (p.shots > 0) {
+                    let collisionEnabled = true;
+                    const toggle = document.getElementById('collision-toggle');
+                    if (toggle) collisionEnabled = toggle.checked;
+
                     p.body.collisionFilterGroup = CG_ACTIVE_BALL;
-                    p.body.collisionFilterMask = CG_ENVIRONMENT | CG_ACTIVE_BALL;
+                    p.body.collisionFilterMask = CG_ENVIRONMENT | (collisionEnabled ? CG_ACTIVE_BALL : 0);
                 }
             }
 

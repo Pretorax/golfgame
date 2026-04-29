@@ -260,6 +260,11 @@ input[type="checkbox"], input[type="radio"] {
     white-space: nowrap;
 }
 
+body.small-text-mode .player-name-tag {
+    font-size: 14.7px;
+    text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
 /* Top Bar */
 #hud-top-bar {
     position: absolute;
@@ -439,19 +444,20 @@ input[type="checkbox"], input[type="radio"] {
 #hud-scorecard {
     position: absolute;
     top: 180px;
-    left: 3rem;
-    width: 300px;
+    left: 1.5rem;
+    width: 210px;
     background: rgba(15, 23, 42, 0.4);
-    border: 3px solid var(--glass-border);
-    border-radius: 12px;
-    padding: 1.5rem;
+    border: 2px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 0.75rem;
     color: white;
     font-family: 'Outfit', sans-serif;
     pointer-events: none;
 }
 #hud-scorecard h3 {
-    margin: 0 0 15px 0;
-    font-size: 24px;
+    margin: 0 0 12px 0;
+    font-size: var(--dynamic-title-size, 15px);
+    color: white;
     border-bottom: 1.5px solid var(--glass-border);
     padding-bottom: 7.5px;
     text-align: center;
@@ -460,12 +466,12 @@ input[type="checkbox"], input[type="radio"] {
     list-style: none;
     padding: 0;
     margin: 0;
-    font-size: 21px;
+    font-size: var(--dynamic-font-size, 18px);
 }
 #scorecard-list li {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 6px;
+    margin-bottom: var(--dynamic-margin, 6px);
     text-shadow: 1.5px 1.5px 3px black;
 }
 .scorecard-name {
@@ -473,7 +479,7 @@ input[type="checkbox"], input[type="radio"] {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 195px;
+    max-width: 150px;
 }
 
 .final-scorecard-container {
